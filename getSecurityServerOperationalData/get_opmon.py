@@ -1,7 +1,7 @@
 # Python script to collect operational monitoring data from given list of security servers
 # Local security server SERVER_URL to be used to go through
 # Threaded queries (THREAD_COUNT) in use
-# Result files in directory LOG_PATH, rotated with max size LOG_MAX_SIZE. 
+# Result files in directory LOG_PATH, rotated with max size LOG_MAX_SIZE.
 # Maximum amount of rotated logs to keep is LOG_BACKUP_COUNT.
 # Status file to keep nextRecordsFrom values is NEXT_RECORDS_FILE
 #
@@ -82,7 +82,7 @@ LOG_PATH = ""
 
 # Maximum log size (in bytes) before log rotation
 # 10000000 ~ 10Mb
-# 100000000 ~ 10Mb
+# 100000000 ~ 100Mb
 LOG_MAX_SIZE = 100000000
 
 # Maximum amount of rotated logs to keep. Setting to 0 will disable log rotation
@@ -109,18 +109,18 @@ def process_data(threadName, serverData):
 
     host_name = re.sub("[^0-9a-zA-Z\.-]+", '.', m.group(0))
 
-    if DEBUG: print threadName + " Processing server " + host_name
+    if DEBUG: print (threadName + " Processing server " + host_name)
 
     if m.group(0) in nextRecordsFrom.keys():
         recordsFrom = nextRecordsFrom[m.group(0)]
-        if DEBUG: print threadName + " Read nextRecordsFrom"
+        if DEBUG: print (threadName + " Read nextRecordsFrom")
     else:
         recordsFrom = str(int(time.time()) - RECORDS_FROM_OFFSET)
-        if DEBUG: print threadName + " Using defaults for recordsFrom"
+        if DEBUG: print (threadName + " Using defaults for recordsFrom")
 
     recordsTo = str(int(time.time()) - RECORDS_TO_OFFSET)
 
-    if DEBUG: print threadName + " Debug: recordsFrom=" + recordsFrom + "; recordsTo=" + recordsTo
+    if DEBUG: print (threadName + " Debug: recordsFrom=" + recordsFrom + "; recordsTo=" + recordsTo)
 
     body = """<SOAP-ENV:Envelope
        xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
@@ -174,7 +174,7 @@ def process_data(threadName, serverData):
 
     # Writing to log files
     if len(records):
-        if DEBUG: print threadName + " Appending " + str(len(records)) + " lines to log file"
+        if DEBUG: print (threadName + " Appending " + str(len(records)) + " lines to log file")
         # TODO: host_name produces hierarchical logger. Can it be a problem?
         logger = logging.getLogger(host_name)
         logger.setLevel(logging.INFO)
@@ -184,10 +184,10 @@ def process_data(threadName, serverData):
             logger.addHandler(handler)
         for record in records:
             logger.info(json.dumps(record, separators=(',', ':')))
-            if DEBUG > 1: print threadName + "   added record: " + record["messageId"]
+            if DEBUG > 1: print (threadName + "   added record: " + record["messageId"])
         # Removing handler to avoid duplicate handlers if query to this host is repeated.
         #logger.removeHandler(handler)
-    elif DEBUG: print threadName + " No data found to append to log file"
+    elif DEBUG: print (threadName + " No data found to append to log file")
 
     # Update nextRecordsFrom value
     resp_search = re.search("<om:nextRecordsFrom>(\d+)</om:nextRecordsFrom>", response.content)
@@ -195,7 +195,7 @@ def process_data(threadName, serverData):
         # Locking nextRecordsFrom
         nextRecordsLock.acquire()
         nextRecordsFrom[m.group(0)] = resp_search.group(1)
-        if DEBUG: print threadName + " Using nextRecordsFrom from response: " + nextRecordsFrom[m.group(0)]
+        if DEBUG: print (threadName + " Using nextRecordsFrom from response: " + nextRecordsFrom[m.group(0)])
         nextRecordsLock.release()
 
         # Deciding if we should repeat query and fetch additional data
@@ -207,14 +207,14 @@ def process_data(threadName, serverData):
             queueLock.acquire()
             workQueue.put(serverData)
             queueLock.release()
-            if DEBUG: print threadName + " Adding to queue the request (nr " + str(REPEAT_LIMIT - serverData['repeats']) + ") to fetch additional data from server " + m.group(0)
+            if DEBUG: print (threadName + " Adding to queue the request (nr " + str(REPEAT_LIMIT - serverData['repeats']) + ") to fetch additional data from server " + m.group(0))
         else:
             sys.stderr.write(threadName + " Maximum repeats reached for server " + m.group(0) + "\n")
     else:
         # Locking nextRecordsFrom
         nextRecordsLock.acquire()
         nextRecordsFrom[m.group(0)] = str(int(recordsTo) + 1)
-        if DEBUG: print threadName + " Using recordsTo + 1 for nextRecordsFrom: " + nextRecordsFrom[m.group(0)]
+        if DEBUG: print (threadName + " Using recordsTo + 1 for nextRecordsFrom: " + nextRecordsFrom[m.group(0)])
         nextRecordsLock.release()
 
 
@@ -226,7 +226,7 @@ class myThread (threading.Thread):
         self.name = name
         self.q = q
     def run(self):
-        if DEBUG: print "Starting " + self.name
+        if DEBUG: print ("Starting " + self.name)
 
         global workingThreads
         while not exitFlag:
@@ -249,7 +249,7 @@ class myThread (threading.Thread):
                 queueLock.release()
             time.sleep(0.1)
 
-        if DEBUG: print "Exiting " + self.name
+        if DEBUG: print ("Exiting " + self.name)
 
 
 # Used to signal threades to exit. 0 = continue; 1 = exit
@@ -306,4 +306,4 @@ for t in threads:
 with open(NEXT_RECORDS_FILE, 'w') as jsonData:
     json.dump(nextRecordsFrom, jsonData, sort_keys=True, indent=4)
 
-if DEBUG: print "Exiting Main Thread"
+if DEBUG: print ("Exiting Main Thread")
