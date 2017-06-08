@@ -1,3 +1,12 @@
+# Python script to collect operational monitoring data from given list of security servers
+# Local security server SERVER_URL to be used to go through
+# Threaded queries (THREAD_COUNT) in use
+# Result files in directory LOG_PATH, rotated with max size LOG_MAX_SIZE. 
+# Maximum amount of rotated logs to keep is LOG_BACKUP_COUNT.
+# Status file to keep nextRecordsFrom values is NEXT_RECORDS_FILE
+#
+# NB! Global configuration signature is not checked. Use this program at your own risk.
+
 import sys
 import re
 import requests
@@ -33,7 +42,7 @@ MONITORING_CLIENT="""        <xrd:client id:objectType="SUBSYSTEM">
 """
 
 # How many threads to use for data quering.
-THREAD_COUNT=2
+THREAD_COUNT=5
 
 # Timeout for http requests.
 TIMEOUT=10.0
@@ -72,7 +81,9 @@ REPEAT_LIMIT=5
 LOG_PATH = ""
 
 # Maximum log size (in bytes) before log rotation
-LOG_MAX_SIZE = 10000000
+# 10000000 ~ 10Mb
+# 100000000 ~ 10Mb
+LOG_MAX_SIZE = 100000000
 
 # Maximum amount of rotated logs to keep. Setting to 0 will disable log rotation
 LOG_BACKUP_COUNT = 100
@@ -296,4 +307,3 @@ with open(NEXT_RECORDS_FILE, 'w') as jsonData:
     json.dump(nextRecordsFrom, jsonData, sort_keys=True, indent=4)
 
 if DEBUG: print "Exiting Main Thread"
-
