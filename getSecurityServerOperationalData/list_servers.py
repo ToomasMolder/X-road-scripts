@@ -1,5 +1,6 @@
-#!/usr/bin/python
-
+# Python script to receive list of security servers available from CENTRALSERVER global configuration
+# Name/IP of Central server given as first attribute sys.argv[1]
+#
 # NB! Global configuration signature is not checked. Use this program at your own risk.
 
 import sys
@@ -15,15 +16,15 @@ if len(sys.argv) != 2 or sys.argv[1] in ("-h", "-help", "--help"):
     exit(0)
 
 # Name/IP of Central server
-SERVER=sys.argv[1]
+CENTRALSERVER=sys.argv[1]
 
 # Downloading shared-params.xml
 try:
-    globalConf = requests.get("http://"+SERVER+"/internalconf", timeout=TIMEOUT)
+    globalConf = requests.get("http://"+CENTRALSERVER+"/internalconf", timeout=TIMEOUT)
     globalConf.raise_for_status()
 # NB! re.search global configuration regex might be changed according version naming or other future naming conventions
     s = re.search("Content-location: (/V\d+/\d+/shared-params.xml)", globalConf.content)
-    sharedParams = requests.get("http://"+SERVER+s.group(1), timeout=TIMEOUT)
+    sharedParams = requests.get("http://"+CENTRALSERVER+s.group(1), timeout=TIMEOUT)
     sharedParams.raise_for_status()
 except requests.exceptions.RequestException:
     exit(0)
@@ -41,4 +42,3 @@ try:
         print instance + "/" + memberClass + "/" + memberCode + "/" + serverCode + "/" + address
 except Exception:
     exit(0)
-
