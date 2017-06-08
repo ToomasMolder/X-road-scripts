@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 TIMEOUT=5.0
 
 if len(sys.argv) != 2 or sys.argv[1] in ("-h", "-help", "--help"):
-    print "Usage: ${0} <central_server_name>\nThe Name/IP of Central server can be found in configuration anchor."
+    print ("Usage: ${0} <central_server_name>\nThe Name/IP of Central server can be found in configuration anchor.")
     exit(0)
 
 # Name/IP of Central server
@@ -39,6 +39,6 @@ try:
         memberCode = owner.find("./memberCode").text
         serverCode = server.find("./serverCode").text
         address = server.find("./address").text
-        print instance + "/" + memberClass + "/" + memberCode + "/" + serverCode + "/" + address
+        print (instance + "/" + memberClass + "/" + memberCode + "/" + serverCode + "/" + address)
 except Exception:
     exit(0)
