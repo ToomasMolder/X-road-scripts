@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ -z $1 ] || [ $1 = "-h" ] || [ $1 = "--help" ]; then
-    echo -e "Usage: list_servers.sh <central_server_URL>\nThe URL of Central server can be found in configuration anchor"
+    echo -e "Usage: $0 <central_server_URL>\nThe URL of Central server can be found in configuration anchor"
     exit 1;
 fi
 
