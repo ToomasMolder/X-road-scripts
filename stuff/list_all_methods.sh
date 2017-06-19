@@ -1,8 +1,8 @@
 #!/bin/bash
 
 if [ -z $1 ] || [ -z $2 ] || [ $1 = "-h" ] || [ $1 = "--help" ]; then
-    echo -e "Usage: list_all_methods.sh <security_server_URL> <consumer_member_identifier>
-Example: ./list_all_methods.sh server.ci.kit VS/GOV/20000001"
+    echo -e "Usage: $0 <security_server_URL> <consumer_member_identifier>
+Example: $0 server.ci.kit VS/GOV/20000001"
     exit 1;
 fi
 
