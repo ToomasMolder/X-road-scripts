@@ -109,18 +109,18 @@ def process_data(threadName, serverData):
 
     host_name = re.sub("[^0-9a-zA-Z\.-]+", '.', m.group(0))
 
-    if DEBUG: print (threadName + " Processing server " + host_name)
+    if DEBUG: print (threadName + ": " + host_name + ": " + "Processing server")
 
     if m.group(0) in nextRecordsFrom.keys():
         recordsFrom = nextRecordsFrom[m.group(0)]
-        if DEBUG: print (threadName + " Read nextRecordsFrom")
+        if DEBUG: print (threadName + ": " + host_name + ": " + "Read nextRecordsFrom")
     else:
         recordsFrom = str(int(time.time()) - RECORDS_FROM_OFFSET)
-        if DEBUG: print (threadName + " Using defaults for recordsFrom")
+        if DEBUG: print (threadName + ": " + host_name + ": " + "Using defaults for recordsFrom")
 
     recordsTo = str(int(time.time()) - RECORDS_TO_OFFSET)
 
-    if DEBUG: print (threadName + " Debug: recordsFrom=" + recordsFrom + "; recordsTo=" + recordsTo)
+    if DEBUG: print (threadName + ": " + host_name + ": " + "Debug: recordsFrom=" + recordsFrom + "; recordsTo=" + recordsTo)
 
     body = """<SOAP-ENV:Envelope
        xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
@@ -158,9 +158,11 @@ def process_data(threadName, serverData):
 
     try:
         response = requests.post(SERVER_URL, data=body, headers=headers, timeout=TIMEOUT)
+        # if DEBUG > 1: print(threadName + ": " + host_name + ": " + "Response " + response.content)
         response.raise_for_status()
     except requests.exceptions.RequestException:
-        sys.stderr.write(threadName + " Cannot get response for: " + m.group(0) + "\n")
+        sys.stderr.write(threadName + ": " + host_name + ": " + "Cannot get response for: " + m.group(0) + "\n")
+        # sys.stderr.write(threadName + ": " + host_name + ": " + "Response exception: " + response.content + "\n")
         return
 
     try:
@@ -169,12 +171,13 @@ def process_data(threadName, serverData):
         data = json.loads(zlib.decompress(resp_search.group(1), zlib.MAX_WBITS|16))
         records=data["records"]
     except Exception:
-        sys.stderr.write(threadName + " Cannot parse response attachment of: " + m.group(0) + "\n")
+        sys.stderr.write(threadName + ": " + host_name + ": " + "Cannot parse response attachment of: " + m.group(0) + "\n")
+        sys.stderr.write(threadName + ": " + host_name + ": " + "Parse exception: " + response.content + "\n")
         return
 
     # Writing to log files
     if len(records):
-        if DEBUG: print (threadName + " Appending " + str(len(records)) + " lines to log file")
+        if DEBUG: print (threadName + ": " + host_name + ": " + "Appending " + str(len(records)) + " lines to log file")
         # TODO: host_name produces hierarchical logger. Can it be a problem?
         logger = logging.getLogger(host_name)
         logger.setLevel(logging.INFO)
@@ -184,10 +187,11 @@ def process_data(threadName, serverData):
             logger.addHandler(handler)
         for record in records:
             logger.info(json.dumps(record, separators=(',', ':')))
-            if DEBUG > 1: print (threadName + "   added record: " + record["messageId"])
+            # if DEBUG > 1: print (threadName + ": " + host_name + ": " + "  added record: " + record["messageId"])
+            if DEBUG > 1: print (threadName + ": " + host_name + ": " + "  added record: " + str(record.get("messageId", None)))
         # Removing handler to avoid duplicate handlers if query to this host is repeated.
         #logger.removeHandler(handler)
-    elif DEBUG: print (threadName + " No data found to append to log file")
+    elif DEBUG: print (threadName + ": " + host_name + ": " + "No data found to append to log file")
 
     # Update nextRecordsFrom value
     resp_search = re.search("<om:nextRecordsFrom>(\d+)</om:nextRecordsFrom>", response.content)
@@ -195,26 +199,26 @@ def process_data(threadName, serverData):
         # Locking nextRecordsFrom
         nextRecordsLock.acquire()
         nextRecordsFrom[m.group(0)] = resp_search.group(1)
-        if DEBUG: print (threadName + " Using nextRecordsFrom from response: " + nextRecordsFrom[m.group(0)])
+        if DEBUG: print (threadName + ": " + host_name + ": " + "Using nextRecordsFrom from response: " + nextRecordsFrom[m.group(0)])
         nextRecordsLock.release()
 
         # Deciding if we should repeat query and fetch additional data
         if len(records) < REPEAT_MIN_RECORDS:
-            sys.stderr.write(threadName + " Not enough data received (" + str(len(records)) + ") to repeat query to server " + m.group(0) + "\n")
+            sys.stderr.write(threadName + ": " + host_name + ": " + "Not enough data received (" + str(len(records)) + ") to repeat query to server " + m.group(0) + "\n")
         elif serverData['repeats']:
             serverData['repeats'] -= 1
             # Locking workQueue
             queueLock.acquire()
             workQueue.put(serverData)
             queueLock.release()
-            if DEBUG: print (threadName + " Adding to queue the request (nr " + str(REPEAT_LIMIT - serverData['repeats']) + ") to fetch additional data from server " + m.group(0))
+            if DEBUG: print (threadName + ": " + host_name + ": " + "Adding to queue the request (nr " + str(REPEAT_LIMIT - serverData['repeats']) + ") to fetch additional data from server " + m.group(0))
         else:
-            sys.stderr.write(threadName + " Maximum repeats reached for server " + m.group(0) + "\n")
+            sys.stderr.write(threadName + ": " + host_name + ": " + "Maximum repeats reached for server " + m.group(0) + "\n")
     else:
         # Locking nextRecordsFrom
         nextRecordsLock.acquire()
         nextRecordsFrom[m.group(0)] = str(int(recordsTo) + 1)
-        if DEBUG: print (threadName + " Using recordsTo + 1 for nextRecordsFrom: " + nextRecordsFrom[m.group(0)])
+        if DEBUG: print (threadName + ": " + host_name + ": " + "Using recordsTo + 1 for nextRecordsFrom: " + nextRecordsFrom[m.group(0)])
         nextRecordsLock.release()
 
 
