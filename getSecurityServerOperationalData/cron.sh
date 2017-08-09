@@ -10,6 +10,7 @@
 # Variables
 #
 # Executables
+# We do use python with flag -u to force stdin, stdout and stderr to be totally unbuffered.
 PYTHON="/usr/bin/python"
 # Get current working directory
 CWD=$(pwd)
@@ -89,5 +90,5 @@ fi
 # Receive operational monitoring data from security servers in list
 # Script GET_OPMON keeps the status of data received in ${LOG_DIR}/nextRecordsFrom.json
 cd ${LOG_DIR}
-echo "${DATA}" | ${PYTHON} ${GET_OPMON}
+echo "${DATA}" | ${PYTHON} -u ${GET_OPMON}
 cd ${CWD}
