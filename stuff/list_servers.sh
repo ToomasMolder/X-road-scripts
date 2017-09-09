@@ -21,12 +21,12 @@ Ater updaing the OS run following command to install the packae:
         sudo apt-get install xmlstarlet
 '
 
-if [[ -x "${GET_SHARED_PARAMS}" ]]
-then
-    ${GET_SHARED_PARAMS} ${SERVER} | xmlstarlet sel -t -m '/ns3:conf/securityServer' \
-    -v "concat(/ns3:conf/instanceIdentifier, '/', /ns3:conf/member[@id=current()/owner]/memberClass/code, '/', /ns3:conf/member[@id=current()/owner]/memberCode, '/', serverCode, '/', address)" -n
-    exit $?;
-else
+if [ ! -x "${GET_SHARED_PARAMS}" ]; then
     echo "File '${GET_SHARED_PARAMS}' is not executable or found"
-    exit 1;
+    exit 1
 fi
+
+${GET_SHARED_PARAMS} ${SERVER} | xmlstarlet sel -t -m '/ns3:conf/securityServer' \
+    -v "concat(/ns3:conf/instanceIdentifier, '/', /ns3:conf/member[@id=current()/owner]/memberClass/code, '/', /ns3:conf/member[@id=current()/owner]/memberCode, '/', serverCode, '/', address)" -n
+
+exit $?
