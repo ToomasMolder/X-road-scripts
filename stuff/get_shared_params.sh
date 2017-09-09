@@ -11,3 +11,5 @@ SERVER=${1}
 
 # curl -s "${SERVER}"`curl -s ${SERVER}/internalconf | perl -ne "print \\\$1 if /Content-location: (.*shared-params.xml)/"`
 curl -s "${SERVER}"`curl -s "${SERVER}/internalconf" | egrep "^Content-location: (.*shared-params.xml$)" | head -1 | cut -d':' -f2 | sed -e "s/ //g"`
+
+exit $?
