@@ -3,20 +3,28 @@
 The instructions to install all components, as well as all modules source code, can be found at:
 
 ```
-https://stash.ria.ee/projects/XTEE6/repos/monitor/browse 
+https://stash.ria.ee/projects/XTEE6/repos/monitor/browse
+git clone https://${user}@stash.ria.ee/scm/xtee6/monitor.git
+```
+
+The same is periodically downloaded also
+```
+Host: opmon.ci.kit
+Path: /srv/app/monitor
+Instructions: /srv/app/monitor/docs 
 ```
 
 It represents the current status of our development, and will be updated as we progress.
 
 # Installation instructions:
 
-The system architecture is described [here](./docs/system_architecture.md).
+The system architecture is described ==> [here](./docs/system_architecture.md) <==.
 
 ## Installing/setting up the Mongo Database (MongoDB)
 
 The first thing that should be done is setting up the MongoDB. Elasticsearch is not currently used. 
 
-Instructions on setting up the MongoDB can be found [here](./docs/database_module.md).
+Instructions on setting up the MongoDB can be found ==> [here](./docs/database_module.md) <==.
 
 ## Module installation precedence
 
