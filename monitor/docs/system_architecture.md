@@ -1,46 +1,45 @@
-# X-Road project - System Architecture
+# X-Road monitoring project - System Architecture
 
 The system is distributed over 7 servers, organized as follows:
 
-* Database Module (MongoDB)
-* Collector Module
-* Corrector Module
-* Reports Module
-* Analyzer Module
-* Open Data Module (on 2 servers)
+* [Database Module (MongoDB)](#database-module)
+* [Collector Module](#collector-module)
+* [Corrector Module](#corrector-module)
+* [Reports Module](#reports-module)
+* [Analyzer Module](#analyzer-module)
+* [Opendata Module (on 2 nodes)](#opendata-module)
 
-![system diagram](img/system_overview.png "System overview")
+![System overview](img/system_overview.png "System overview")
 
 
 The following sections describes each of these modules.
 
-#### Operational specifications
+## Operational specifications
 
 * MongoDB shall retain 1 year data in disk memory
 * MongoDB shall retain 1 week data in RAM memory for efficient query
 * MongoDB shall run in a replication set for availability
 * PostgreSQL shall retain 1 year of public available data.
 
-* Corrector: runs every 6h, use recent data in MongoDB
-* Analyzer: runs every day, uses MongoDB and local cache in disk
-* Report creator: runs every day, uses MongoDB, stores reports in disk
-* Open Data Module: runs every day, uses MongoDB recent data, uses PostgreSQL as main database.
+* Collector: runs every 15m, creates list of security servers according to global configuration, collects data from security servers, stores raw data into MongoDB or into HDD
+* Corrector: runs every 15m, removes possible duplicates from raw data in MongoDB, does simple calculations about durations and stores clean data into MongoDB
+* Analyzer: runs every day, finds errors and possible anomalies (incidents) from clean data in MongoDB, uses MongoDB and local cache in HDD
+* Reports creator: runs every day, creates usage reports based on clean data in MongoDB, uses MongoDB, stores reports in HDD, syncs them remotely into public site and sends emails to customers about them
+* Opendata: runs every day, uses MongoDB recent clean data, uses PostgreSQL as main database.
 
-
-#### Database Module
+## Database Module
 
 The Database Module is responsible to store queries data using MongoDB. 
 It uses the following configuration:
 
-######## Description
+#### Description
 
 ```
 Host: opmon.ci.kit
-Code snapshot: /app/x_road_project
 System User: opmon
 ```
 
-######## Hardware Specification
+#### Hardware Specification
 
 ```
 * 64 GB RAM per Node
@@ -49,88 +48,106 @@ System User: opmon
 * Scalability: Addition of Nodes (8 nodes to support 1 week data in RAM in 2021)
 ```
 
-######## Software Specification
+#### Software Specification
 
 ```
 * Ubuntu LTS 14.04 with EXT4 or XFS
-* Python 3.5
+* Python 3.5 (TODO: check this requirement, probably Python not required here)
 * MongoDB 3.4
 ```
 
+#### Network Specification
 
-#### Collector Module
+```
+* port 27017 (default)
+* allow access from: collector IP, corrector IP, analyzer IP, reports IP, opendata anonymizer IP
+```
+
+## Collector Module
 
 The Collector Module is responsible for querying servers and storing the data into MongoDB database.
 It uses the following configuration: 
 
-######## Description
+#### Description
 
 ```
 Host: opmon-collector.ci.kit
-Path: /app/collector_module
+Path: /srv/app/collector_module
 System User: collector
 ```
 
-######## Hardware Specification
+#### Hardware Specification
 
 ```
 * 16 GB RAM
 * 512 GB storage
 ```
 
-######## Software Specification
+#### Software Specification
 
 ```
 * Ubuntu LTS 14.04 with EXT4 or XFS
 * Python 3.5
 ```
 
+#### Network Specification
 
-#### Corrector Module
+```
+* allow access to: X-Road central server port 80, monitoring security server port 80
+* allow access to: opmon.ci.kit:27017 (default, MongoDB)
+```
+
+## Corrector Module
 
 The Corrector Module is responsible for transforming the raw data in MongoDB to cleaning data.
 It uses the following configuration: 
 
 ```
 Host: opmon-corrector.ci.kit
-Path: /app/corrector_module
+Path: /srv/app/corrector_module
 System User: corrector
 ```
 
-######## Hardware Specification
+#### Hardware Specification
 
 ```
 * 32 GB RAM
 * 512 GB storage ( ~ 2TB in 2021)
 ```
 
-######## Software Specification
+#### Software Specification
 
 ```
 * Ubuntu LTS 14.04 with EXT4 or XFS
 * Python 3.5
 ```
 
+#### Network Specification
 
-#### Reports Module
+```
+* allow access to: opmon.ci.kit:27017 (default, MongoDB)
+```
+
+
+## Reports Module
 
 The Reports Module is responsible to generate periodical reports, accordingly to user configuration.
 It uses the following configuration: 
 
 ```
 Host: opmon-reports.ci.kit
-Path: /app/reports_module
+Path: /srv/app/reports_module
 System User: reports
 ```
 
-######## Hardware Specification
+#### Hardware Specification
 
 ```
 * 16 GB RAM
 * 512 GB storage
 ```
 
-######## Software Specification
+#### Software Specification
 
 ```
 * Ubuntu LTS 14.04 with EXT4 or XFS
@@ -138,23 +155,23 @@ System User: reports
 ```
 
 
-#### Opendata Module
+## Opendata Module
 
 ```
 Host: opmon-opendata.ci.kit
 Components: Opendata, PostgreSQL
 ```
 
-##### Server 1 - Anonymizer and PostgreSQL 
+### Server 1 - Anonymizer and PostgreSQL 
 
-######## Hardware Specification
+#### Hardware Specification
 
 ```
 * 32 GB RAM
 * 5 TB storage ( ~ 30 TB in 2021)
 ```
 
-######## Software Specification
+#### Software Specification
 
 ```
 * Ubuntu LTS 14.04 with EXT4 or XFS
@@ -162,16 +179,16 @@ Components: Opendata, PostgreSQL
 * PostgreSQL
 ```
 
-##### Server 2 - Open Data Interface (GUI/API)
+### Server 2 - Open Data Interface (GUI/API)
 
-######## Hardware Specification
+#### Hardware Specification
 
 ```
 * 16 GB RAM
 * 128 GB storage (just for server-side caching)
 ```
 
-######## Software Specification
+#### Software Specification
 
 ```
 * Ubuntu LTS 14.04 with EXT4 or XFS
@@ -179,21 +196,21 @@ Components: Opendata, PostgreSQL
 ```
 
 
-#### Analyzer Module
+## Analyzer Module
 
 ```
 Host: opmon-analyzer.ci.kit
 Components: Analyzer, Analyzer UI
 ```
 
-######## Hardware Specification
+#### Hardware Specification
 
 ```
 * 128 GB RAM
 * 5 TB storage
 ```
 
-######## Software Specification
+#### Software Specification
 
 ```
 * Ubuntu LTS 14.04 with EXT4 or XFS
