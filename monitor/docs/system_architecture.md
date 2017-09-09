@@ -154,15 +154,24 @@ System User: reports
 * Python 3.5
 ```
 
+#### Network Specification
+
+```
+* allow access to: opmon.ci.kit:27017 (default, MongoDB)
+* allow access to: public web:22 (scp, rsync)
+```
 
 ## Opendata Module
 
-```
-Host: opmon-opendata.ci.kit
-Components: Opendata, PostgreSQL
-```
-
 ### Server 1 - Anonymizer and PostgreSQL 
+
+**TODO: consider PostgreSQL to be moved from Server 1 into Server 2. If yes, then review all requirements/specifications**
+
+```
+Host: opmon-anonymizer.ci.kit
+Path: /srv/app/opendata_module/anonymizer
+System User: anonymizer
+```
 
 #### Hardware Specification
 
@@ -179,7 +188,22 @@ Components: Opendata, PostgreSQL
 * PostgreSQL
 ```
 
+#### Network Specification
+
+```
+* allow access to: opmon.ci.kit:27017 (default, MongoDB)
+* allow access to: opmon-opendata:5432 (default, PostgreSQL)
+```
+
 ### Server 2 - Open Data Interface (GUI/API)
+
+**TODO: consider PostgreSQL to be moved from Server 1 into Server 2. If yes, then review all requirements/specifications**
+
+```
+Host: opmon-opendata.ci.kit
+Path: /srv/app/opendata_module/interface
+System User: opendata
+```
 
 #### Hardware Specification
 
@@ -195,11 +219,18 @@ Components: Opendata, PostgreSQL
 * Python 3.5
 ```
 
+#### Network Specification
+
+```
+* allow access to: opmon-opendata:5432 (default, PostgreSQL)
+* allow access from: 0.0.0.0/0:80 (public, www)
+```
 
 ## Analyzer Module
 
 ```
 Host: opmon-analyzer.ci.kit
+Path: /srv/app/analyzer_module
 Components: Analyzer, Analyzer UI
 ```
 
@@ -215,4 +246,11 @@ Components: Analyzer, Analyzer UI
 ```
 * Ubuntu LTS 14.04 with EXT4 or XFS
 * Python 3.5
+```
+
+#### Network Specification
+
+```
+* allow access to: opmon.ci.kit:27017 (default, MongoDB)
+* allow access from: internal administrative network:80 (private, www)
 ```
