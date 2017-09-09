@@ -18,4 +18,4 @@ NB1! Skript käivitatakse turvaserveris (root õigustes).
 
 NB2! Teenuseid ei kuvata kui turvaserver ei vasta päringule - teadmata põhjusel (jälgi terminalis veateateid)
 
-NB3! Kui andmekogu turvaservei ei vasta 5 sekundi jooksul esimesel pöörumisel, pöördutakse järgmise adnmekogu poole.
+NB3! Kui andmekogu turvaserver ei vasta 5 sekundi jooksul esimesel pöörumisel (`timeout='5'`), pöördutakse järgmise andmekogu poole.
