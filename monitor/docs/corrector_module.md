@@ -28,11 +28,11 @@ mkdir -p ~/monitor; cd ~/monitor; git pull https://stash.ria.ee/scm/xtee6/monito
 
 ## Networking
 
-#### Outgoing:
+### Outgoing
 
 The corrector module needs access to the Database Module (see [Database_Module](database_module.md)).
 
-#### Incoming: 
+### Incoming
 
 No **incoming** connection is needed in the corrector module.
 
@@ -96,11 +96,15 @@ If needed, edit necessary modifications to the settings file using your favorite
 sudo vi /srv/app/ee-dev/corrector_module/settings.py
 ```
 
+## Manual usage
+
 To check commands manually as corrector user, execute:
 
 ```bash
-cd /srv/app/ee-dev/corrector_module/ ; sudo -u collector ./cron_corrector.sh
+cd /srv/app/ee-dev/corrector_module/ ; sudo -u corrector ./cron_corrector.sh
 ```
+
+## CRON usage
 
 Add **corrector module** as a **cron job** to the **corrector** user.
 
