@@ -404,11 +404,11 @@ To perform backup of database, it is recommended to use the mongodb tools **mong
 For example, to perform a complete database backup, execute:
 
 ```
-mongodump -u db_backup -p BACKUP_PWD --gzip --authenticationDatabase admin --out=$MDB_BKPFILE
+mongodump -u db_backup -p BACKUP_PWD --gzip --authenticationDatabase admin --out=MDB_BKPFILE
 ```
 
 where BACKUP_PWD is password for backup user set in paragraph 'Configure **backup** user' and 
-MDB_BKPFILE is output directory for backup
+MDB_BKPFILE is output directory for backup.
 
 For additional details and recommendations, please check:
 
