@@ -12,13 +12,13 @@ Overall system is also designed in a way, that can be used by X-Road Centre for 
 
 The **collector module** is responsible to retrieve data from X-Road v6 security servers and insert into the database module. The execution of the collector module is performed automatically via a **cron job** task.
 
-The module source code can be found at:
+The module source code can be found at (ACL-protected):
 
 ```
 https://stash.ria.ee/projects/XTEE6/repos/monitor/browse
 ```
 
-and can be downloaded into server:
+and can be downloaded into server (ACL-protected):
 
 ```bash
 # NB! git clone required only once
