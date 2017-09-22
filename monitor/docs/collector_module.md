@@ -1,16 +1,40 @@
-# X-Road project - Collector Module
-
+# X-Road v6 monitor project - Collector Module
 
 ## About
 
 The collector module is responsible to retrieve data from servers and insert into the database module. The execution of the collector module is performed automatically via a **cron job** task.
 
+The module source code can be found at:
 
-## Installation (Linux)
+```
+https://stash.ria.ee/projects/XTEE6/repos/monitor/browse
+```
 
-This sections describes the necessary steps to install the **collector module** in a Linux Ubuntu 14.04. To a complete overview of different modules and machines, please refer to the [System Architecture](system_architecture.md) documentation.
+and can be downloaded into server:
 
-#### Install required packages
+```bash
+# NB! git clone required only once
+cd ~; git clone https://stash.ria.ee/scm/xtee6/monitor.git
+mkdir -p ~/monitor; cd ~/monitor; git pull https://stash.ria.ee/scm/xtee6/monitor.git
+```
+
+## Installation
+
+This sections describes the necessary steps to install the **collector module** in a Linux Ubuntu 16.04. To a complete overview of different modules and machines, please refer to the [System Architecture](system_architecture.md) documentation.
+
+## Networking
+
+### Outgoing:
+
+The collector module needs http-access to the X-Road CENTRALSERVER to get from global configuration list of members security servers.
+The collector module needs http-access to the current member SECURITY SERVER to get the data is collected.
+The collector module needs access to the Database Module (see [Database_Module](database_module.md)).
+
+### Incoming: 
+
+No incoming connection is needed in the collector module.
+
+### Install required packages
 
 To install the necessary packages, execute the following commands:
 
@@ -20,86 +44,119 @@ sudo apt-get install python3-pip
 sudo pip3 install pymongo==3.4
 sudo pip3 install requests==2.13
 sudo pip3 install numpy==1.11
+sudo pip3 install tqdm==4.14
 ```
 
+### Install collector module
 
-#### Install collector module
-
-Create the collector user. With the root user, execute:
-
-```
-adduser collector 
-```
-
-Create the **app** directory, and copy the collector code to it:
+The collector module uses the system user **collector** and group **opmon**. To create them, execute:
 
 ```bash
-mkdir /app
-mkdir /app/logs
-cp -r collector_module /app
+sudo groupadd -f opmon
+sudo useradd -M -r -s /bin/false -g opmon collector
 ```
 
-Configure folder permissions to **collector** user:
+The module files should be installed in the **/srv/app** directory, within a sub-folder named after the desired X-Road instance. In this manual, the "ee-dev" is used (please change "ee-dev" to map your desired instance, example: "xtee-ci-xm", "ee-test", "EE")
 
 ```bash
-chown -R collector:collector /app
+# make necessary directories
+sudo mkdir -p /srv/app/ee-dev
+sudo mkdir -p /srv/app/ee-dev/logs
+sudo mkdir -p /srv/app/ee-dev/heartbeat
+# correct necessary permissions
+sudo chown root:opmon /srv/app/ee-dev/logs
+sudo chmod g+w /srv/app/ee-dev/logs
+sudo chown root:opmon /srv/app/ee-dev/heartbeat
+sudo chmod g+w /srv/app/ee-dev/heartbeat
+```
+
+Copy the **collector** code to the install folder and fix the file permissions:
+
+```bash
+sudo rsync -r -t -u ~/monitor/collector_module /srv/app/ee-dev
+# or 
+# sudo cp -u -r ~/monitor/collector_module /srv/app/xtee-ci-xm
+sudo chown -R collector:opmon /srv/app/ee-dev/collector_module
+sudo chmod -R -x+X /srv/app/ee-dev/collector_module
+sudo chmod +x /srv/app/ee-dev/collector_module/*.sh
+```
+
+Settings for different X-Road instances have been prepared and can be used:
+
+```bash
+sudo rm /srv/app/ee-dev/collector_module/settings.py
+sudo ln -s /srv/app/ee-dev/collector_module/settings_ee-dev.py /srv/app/ee-dev/collector_module/settings.py
+```
+
+If needed, edit necessary modifications to the settings file using your favorite text editor (here, **vi** is used):
+
+```bash
+sudo vi /srv/app/ee-dev/collector_module/settings.py
+```
+
+To check collector manually as collector user, execute:
+
+```bash
+cd /srv/app/ee-dev/; sudo -u collector ./collector_module/cron_collector.sh update
 ```
 
 Add **collector module** as a **cron job** to the **collector** user.
 
 ```bash
-sudo su collector
-crontab -e
+sudo crontab -e -u collector
 ```
 
 The **cron job** entry (execute every 3 hours, note that a different value might be needed in production)
 
 ```
-0 */3 * * * /app/collector_module/cron_collector.sh update
+0 */3 * * * cd /srv/app/ee-dev/; ./collector_module/cron_collector.sh update
 ```
 
-Make sure the collector script has execution rights as the **collector** user:
+To check if the collector module is properly installed in the collector user, execute:
 
 ```bash
-chmod +x /app/collector_module/cron_collector.sh
+sudo crontab -l -u collector
 ```
 
-
-## Configuration
-
-The collector module can be configured via the settings file at:
-
-```
-/app/collector_module/settings.py
-```
-
-
-## Networking
-
-#### Outgoing:
-
-The collector module needs access to the servers the data is collected (via CENTRALSERVER) and the Database Module (see [Database_Module](database_module.md)).
-
-#### Incoming: 
-
-No **incoming** connection is needed in the collector module.
-
-
-## Monitoring and Status
-
-To check if the **collector module** is properly installed in the **collector** user, execute:
-
-```bash
-sudo su collector
-crontab -l
-```
-
-This will list all entries in the crontab from **collector** user. You can execute the entries manually to check if all configuration and paths are set correctly.
-
-#### Logging 
+### Logging 
 
 The **collector module** produces log files that, by default, is stored at:
 
 ```
-/app/logs
+/srv/app/ee-dev/logs
 ```
+
+The heartbeat files are written to:
+
+```
+/srv/app/ee-dev/heartbeat
+```
+
+## Appendix
+
+NB! Mentioned appendixes do not log their work and do not keep heartbeat.
+
+### Collecting JSON queries and store into HDD
+
+TODO: not part of current project
+
+### Collecting JSON queries from HDD
+
+It is possible to collect JSON queries from HDD and send it to MongoDB using the command "collector_from_file", as in:
+
+```bash
+cd /srv/app/ee-dev/collector_module/; 
+sudo -u collector /usr/bin/python3 collector_from_file.py 'temp_files/ee-dev.COM.*'
+```
+
+### Upload collector pointers from HDD into MongoDB
+
+TODO
+
+### Download collector pointers from MongoDB into HDD
+
+TODO
+
+---
+
+![](img/eu_regional_development_fund_horizontal_div_15.png "European Union | European Regional Development Fund | Investing in your future")
