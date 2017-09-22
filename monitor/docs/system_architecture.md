@@ -1,4 +1,4 @@
-# X-Road monitoring project - System Architecture
+# X-Road v6 monitor project - System Architecture
 
 The system is distributed over 7 servers, organized as follows:
 
@@ -11,35 +11,48 @@ The system is distributed over 7 servers, organized as follows:
 
 ![System overview](img/system_overview.png "System overview")
 
-
 The following sections describes each of these modules.
 
 ## Operational specifications
 
-* MongoDB shall retain 1 year data in disk memory
-* MongoDB shall retain 1 week data in RAM memory for efficient query
-* MongoDB shall run in a replication set for availability
+### Data flow expectation
+
+* It is expected to have maximum 1 billion (1 000 000 000) X-Road v6 service calls (queries) in production environment in 1 year period
+* Each query log might collected from both query partners (Client and Producer), id est maximum 2 billion (2 000 000 000) X-Road v6 service call logs in production environment in 1 year period:
+  * 165 000 000 logs per month
+  * 40 000 000 logs per week
+  * 5 500 000 logs per day
+  * 231 000 logs per hour 
+  * 60 000 logs per 15 minute
+* Each of log records in JSON-format takes approximately 1 KB (one kilobyte).
+* Each query log is uploaded into MongoDB as 'raw_messages' and after correction kept there as 'clean_data'. Raw messages are purged periodically. Alternatively, log might kept in Collector HDD as disk file and loaded into system from there.
+* Each query log is published in PostgreSQL as open-data after anonymization.
+
+### Database operational specifications
+
+* MongoDB shall retain 1 year data in disk memory.
+* MongoDB shall retain 1 week data in RAM memory for efficient query.
+* MongoDB shall run in a replication set for availability.
 * PostgreSQL shall retain 1 year of public available data.
 
-* Collector: runs every 15m, creates list of security servers according to global configuration, collects data from security servers, stores raw data into MongoDB or into HDD
-* Corrector: runs every 15m, removes possible duplicates from raw data in MongoDB, does simple calculations about durations and stores clean data into MongoDB
-* Analyzer: runs every day, finds errors and possible anomalies (incidents) from clean data in MongoDB, uses MongoDB and local cache in HDD
-* Reports creator: runs every day, creates usage reports based on clean data in MongoDB, uses MongoDB, stores reports in HDD, syncs them remotely into public site and sends emails to customers about them
-* Opendata: runs every day, uses MongoDB recent clean data, uses PostgreSQL as main database.
+### Modules operational specifications
+
+* Collector: runs every 15 min, collect recent data from security servers.
+* Corrector: runs every 15m, use recent data in MongoDB.
+* Analyzer: runs every hour, uses MongoDB and local cache in disk.
+* Report creator: runs every day, uses MongoDB, stores reports in disk.
+* Open Data Module: runs every day, uses MongoDB recent data, uses PostgreSQL as main database.
 
 ## Database Module
 
 The Database Module is responsible to store queries data using MongoDB. 
 It uses the following configuration:
 
-#### Description
-
 ```
 Host: opmon.ci.kit
-System User: opmon
 ```
 
-#### Hardware Specification
+### Hardware Specification
 
 ```
 * 64 GB RAM per Node
@@ -48,15 +61,15 @@ System User: opmon
 * Scalability: Addition of Nodes (8 nodes to support 1 week data in RAM in 2021)
 ```
 
-#### Software Specification
+### Software Specification
 
 ```
-* Ubuntu LTS 14.04 with EXT4 or XFS
+* Ubuntu LTS 16.04 with EXT4 or XFS
 * Python 3.5 (TODO: check this requirement, probably Python not required here)
 * MongoDB 3.4
 ```
 
-#### Network Specification
+### Network Specification
 
 ```
 * port 27017 (default)
@@ -68,29 +81,27 @@ System User: opmon
 The Collector Module is responsible for querying servers and storing the data into MongoDB database.
 It uses the following configuration: 
 
-#### Description
-
 ```
 Host: opmon-collector.ci.kit
 Path: /srv/app/collector_module
 System User: collector
 ```
 
-#### Hardware Specification
+### Hardware Specification
 
 ```
 * 16 GB RAM
 * 512 GB storage
 ```
 
-#### Software Specification
+### Software Specification
 
 ```
-* Ubuntu LTS 14.04 with EXT4 or XFS
+* Ubuntu LTS 16.04 with EXT4 or XFS
 * Python 3.5
 ```
 
-#### Network Specification
+### Network Specification
 
 ```
 * allow access to: X-Road central server port 80, monitoring security server port 80
@@ -108,26 +119,25 @@ Path: /srv/app/corrector_module
 System User: corrector
 ```
 
-#### Hardware Specification
+### Hardware Specification
 
 ```
 * 32 GB RAM
 * 512 GB storage ( ~ 2TB in 2021)
 ```
 
-#### Software Specification
+### Software Specification
 
 ```
-* Ubuntu LTS 14.04 with EXT4 or XFS
+* Ubuntu LTS 16.04 with EXT4 or XFS
 * Python 3.5
 ```
 
-#### Network Specification
+### Network Specification
 
 ```
 * allow access to: opmon.ci.kit:27017 (default, MongoDB)
 ```
-
 
 ## Reports Module
 
@@ -140,17 +150,49 @@ Path: /srv/app/reports_module
 System User: reports
 ```
 
-#### Hardware Specification
+### Hardware Specification
 
 ```
 * 16 GB RAM
 * 512 GB storage
 ```
 
+### Software Specification
+
+```
+* Ubuntu LTS 16.04 with EXT4 or XFS
+* Python 3.5
+```
+
+### Network Specification
+
+```
+* allow access to: opmon.ci.kit:27017 (default, MongoDB)
+* allow access to: public web:22 (scp, rsync)
+* allow access to: smtp:25 (email)
+```
+
+## Opendata Module
+
+### Node 1 - Anonymizer
+
+```
+Host: opmon-anonymizer.ci.kit
+Path: /srv/app/opendata_module/anonymizer
+System User: anonymizer
+```
+
+#### Hardware Specification
+
+```
+* 4 GB RAM
+* 4 GB storage
+```
+
 #### Software Specification
 
 ```
-* Ubuntu LTS 14.04 with EXT4 or XFS
+* Ubuntu LTS 16.04 with EXT4 or XFS
 * Python 3.5
 ```
 
@@ -158,19 +200,15 @@ System User: reports
 
 ```
 * allow access to: opmon.ci.kit:27017 (default, MongoDB)
-* allow access to: public web:22 (scp, rsync)
+* allow access to: opmon-opendata:5432 (default, PostgreSQL)
 ```
 
-## Opendata Module
-
-### Server 1 - Anonymizer and PostgreSQL 
-
-**TODO: consider PostgreSQL to be moved from Server 1 into Server 2. If yes, then review all requirements/specifications**
+### Node 2 - Interface and PostgreSQL 
 
 ```
-Host: opmon-anonymizer.ci.kit
-Path: /srv/app/opendata_module/anonymizer
-System User: anonymizer
+Host: opmon-opendata.ci.kit
+Path: /srv/app/opendata_module/interface
+System User: opendata
 ```
 
 #### Hardware Specification
@@ -183,7 +221,7 @@ System User: anonymizer
 #### Software Specification
 
 ```
-* Ubuntu LTS 14.04 with EXT4 or XFS
+* Ubuntu LTS 16.04 with EXT4 or XFS
 * Python 3.5
 * PostgreSQL
 ```
@@ -191,39 +229,8 @@ System User: anonymizer
 #### Network Specification
 
 ```
-* allow access to: opmon.ci.kit:27017 (default, MongoDB)
-* allow access to: opmon-opendata:5432 (default, PostgreSQL)
-```
-
-### Server 2 - Open Data Interface (GUI/API)
-
-**TODO: consider PostgreSQL to be moved from Server 1 into Server 2. If yes, then review all requirements/specifications**
-
-```
-Host: opmon-opendata.ci.kit
-Path: /srv/app/opendata_module/interface
-System User: opendata
-```
-
-#### Hardware Specification
-
-```
-* 16 GB RAM
-* 128 GB storage (just for server-side caching)
-```
-
-#### Software Specification
-
-```
-* Ubuntu LTS 14.04 with EXT4 or XFS
-* Python 3.5
-```
-
-#### Network Specification
-
-```
-* allow access to: opmon-opendata:5432 (default, PostgreSQL)
-* allow access from: 0.0.0.0/0:80 (public, www)
+* allow access from: 0.0.0.0/0:80 (public, http)
+* allow access from: 0.0.0.0/0:443 (public, https)
 ```
 
 ## Analyzer Module
@@ -234,23 +241,27 @@ Path: /srv/app/analyzer_module
 Components: Analyzer, Analyzer UI
 ```
 
-#### Hardware Specification
+### Hardware Specification
 
 ```
 * 128 GB RAM
-* 5 TB storage
+* 5 TB storage - TODO: to be reviewed
 ```
 
-#### Software Specification
+### Software Specification
 
 ```
-* Ubuntu LTS 14.04 with EXT4 or XFS
+* Ubuntu LTS 16.04 with EXT4 or XFS
 * Python 3.5
 ```
 
-#### Network Specification
+### Network Specification
 
 ```
 * allow access to: opmon.ci.kit:27017 (default, MongoDB)
-* allow access from: internal administrative network:80 (private, www)
+* allow access from: internal administrative network:80 (private, http)
 ```
+
+---
+
+![](img/eu_regional_development_fund_horizontal_div_15.png "European Union | European Regional Development Fund | Investing in your future")
