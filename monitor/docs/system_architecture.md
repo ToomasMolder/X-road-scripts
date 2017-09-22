@@ -9,14 +9,21 @@ The system is distributed over 7 servers, organized as follows:
 * [Analyzer Module](#analyzer-module)
 * [Opendata Module (on 2 nodes)](#opendata-module)
 
+Overall system, its users and rights, processes and directories are designed in a way, that all modules can reside in one server and also in separate servers. 
+
+Overall system is also designed in a way, that allows to monitor data from different X-Road v6 instances (ee-dev, ee-test, EE), see also [X-Road v6 environments](https://www.ria.ee/en/x-road-environments.html#v6).
+
+Overall system is also designed in a way, that can be used by X-Road Centre for all X-Road members as well as for Member own monitoring (includes possibilities to monitor also members data exchange partners).
+
+
 ![System overview](img/system_overview.png "System overview")
 
 ## Operational specifications
 
 ### Data flow expectation
 
-* It is expected to have maximum 1 billion (1 000 000 000) X-Road v6 **service calls (queries)** in production environment in 1 year period
-* Each query log might collected from both query partners (Client and Producer), id est maximum 2 billion (2 000 000 000) X-Road v6 service call **logs** in production environment in 1 year period:
+* It is expected to have maximum 1 billion (1 000 000 000) X-Road v6 service calls (queries) in production environment in 1 year period
+* Each query log might collected from both query partners (Client and Producer), id est maximum 2 billion (2 000 000 000) X-Road v6 service call logs in production environment in 1 year period:
   * 165 000 000 logs per month
   * 40 000 000 logs per week
   * 5 500 000 logs per day
@@ -74,6 +81,8 @@ Host: opmon.ci.kit
 * allow access from: collector IP, corrector IP, analyzer IP, reports IP, opendata anonymizer IP
 ```
 
+Read more about [Database module](database_module.md).
+
 ## Collector Module
 
 The Collector Module is responsible for querying servers and storing the data into MongoDB database.
@@ -106,6 +115,8 @@ System User: collector
 * allow access to: opmon.ci.kit:27017 (default, MongoDB)
 ```
 
+Read more about [Collector module](collector_module.md).
+
 ## Corrector Module
 
 The Corrector Module is responsible for transforming the raw data in MongoDB to cleaning data.
@@ -136,6 +147,8 @@ System User: corrector
 ```
 * allow access to: opmon.ci.kit:27017 (default, MongoDB)
 ```
+
+Read more about [Corrector module](corrector_module.md).
 
 ## Reports Module
 
@@ -169,6 +182,8 @@ System User: reports
 * allow access to: public web:22 (scp, rsync)
 * allow access to: smtp:25 (email)
 ```
+
+Read more about [Reports module](reports_module.md).
 
 ## Opendata Module
 
@@ -230,6 +245,7 @@ System User: opendata
 * allow access from: 0.0.0.0/0:80 (public, http)
 * allow access from: 0.0.0.0/0:443 (public, https)
 ```
+Read more about [Opendata module](opendata_module.md).
 
 ## Analyzer Module
 
@@ -259,6 +275,8 @@ Components: Analyzer, Analyzer UI
 * allow access to: opmon.ci.kit:27017 (default, MongoDB)
 * allow access from: internal administrative network:80 (private, http)
 ```
+
+Read more about [Analysis module](analysis_module.md).
 
 ---
 
