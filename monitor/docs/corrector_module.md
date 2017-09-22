@@ -2,15 +2,23 @@
 
 ## About
 
-The corrector module is responsible to clean the raw data from corrector and derive monitoring metrics in a clean database collection. The execution of the corrector module is performed automatically via a **cron job** task.
+The collector module is part of [X-Road v6 monitor project](../readme.md), which includes modules of [Database module](database_module.md), [Collector module](collector_module.md), [Corrector module (this document)](corrector_module.md), [Analysis module](analysis_module.md), [Reports module](reports_module.md) and [Opendata module](opendata_module.md).
 
-The module source code can be found at:
+Overall system, its users and rights, processes and directories are designed in a way, that all modules can reside in one server and also in separate servers. 
+
+Overall system is also designed in a way, that allows to monitor data from different X-Road v6 instances (ee-dev, ee-test, EE), see also [X-Road v6 environments](https://www.ria.ee/en/x-road-environments.html#v6).
+
+Overall system is also designed in a way, that can be used by X-Road Centre for all X-Road members as well as for Member own monitoring (includes possibilities to monitor also members data exchange partners).
+
+The **corrector module** is responsible to clean the raw data from corrector and derive monitoring metrics in a clean database collection. The execution of the corrector module is performed automatically via a **cron job** task.
+
+The module source code can be found at (ACL-protected):
 
 ```
 https://stash.ria.ee/projects/XTEE6/repos/monitor/browse
 ```
 
-and can be downloaded into server:
+and can be downloaded into server (ACL-protected):
 
 ```bash
 # NB! git clone required only once
@@ -50,7 +58,7 @@ sudo groupadd -f opmon
 sudo useradd -M -r -s /bin/false -g opmon corrector
 ```
 
-The module files should be installed in the **/app/srv** directory, within a sub-folder named after the desired X-Road instance. In this manual, the "ee-dev" is used (please change "ee-dev" to map your desired instance, example: "xtee-ci-xm", "ee-test", "EE")
+The module files should be installed in the **/app/srv** directory, within a sub-folder named after the desired X-Road instance. In this manual, the "ee-dev" is used (please change "ee-dev" to map your desired instance, example: "ee-test", "EE")
 
 ```bash
 # make necessary directories
@@ -108,9 +116,9 @@ The **cron job** entry (execute every 30 minutes, note that a different value mi
 
 ## TODO
 
-Corrector has limit in settings `CORRECTOR_DOCUMENTS_LIMIT = 11000` to ensure RAM and CPU is not overloaded during calculations.
-At same time, we have to ensure, all collected documents are processed within given timeframe. Please refer to the [System Architecture](system_architecture.md) and [Collector](collector_module.md) documentation. 
-To prevent many parallel processes and avoid system locking, it is suggested to implement some locking mechanism or configure as a service.
+Corrector has current limit in settings `CORRECTOR_DOCUMENTS_LIMIT = 11000` within one run to ensure RAM and CPU is not overloaded during calculations.
+At same time, we have to ensure, that all collected documents are processed within given timeframe (please refer to the [System Architecture](system_architecture.md) and [Collector](collector_module.md) documentation for more background). 
+To prevent many parallel processes and avoid system locking, it is suggested to implement some locking mechanism or configure corrector as a service.
 
 ## Monitoring and Status
 
@@ -171,7 +179,12 @@ NB! Mentioned appendixes do not log their work and do not keep heartbeat.
 
 ### Purge duplicated records from MongoDB raw data collection
 
-TODO. To keep MongoDB size under control
+TODO. To keep MongoDB size under control.
+
+### Purge records from MongoDB raw data collection after available in clean_data
+
+TODO. To keep MongoDB size under control.
+
 
 ---
 
