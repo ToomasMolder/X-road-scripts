@@ -411,7 +411,7 @@ msg - message
 version - version
 ```
 
-The statuses used in the Reports generation in the heartbeat are the following:
+The statuses used in the Reports and Factsheet generation in the heartbeat are the following:
 
 ```
 "start"
@@ -419,17 +419,6 @@ The statuses used in the Reports generation in the heartbeat are the following:
 "success"
 "error"
 ```
-
-The statuses used for FactSheet generation in the heartbeat are the following:
-
-```
-"start"
-"in_progress"
-"success"
-"error"
-```
-
-
 
 ---
 
