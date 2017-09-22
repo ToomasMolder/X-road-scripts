@@ -1,12 +1,19 @@
 # X-Road v6 monitor project - Database Module
 
-
 ## About
 
-The database module provides storage and synchronization between the other modules, namely: Collector, Corrector, Reports, OpenData, Analyzer. 
+The database module is part of [X-Road v6 monitor project](../readme.md), which includes modules of [Database module (this document)](database_module.md), [Collector module (this document)](collector_module.md), [Corrector module](corrector_module.md), [Analysis module](analysis_module.md), [Reports module](reports_module.md) and [Opendata module](opendata_module.md).
+
+Overall system, its users and rights, processes and directories are designed in a way, that all modules can reside in one server and also in separate servers. 
+
+Overall system is also designed in a way, that allows to monitor data from different X-Road v6 instances (ee-dev, ee-test, EE), see also [X-Road v6 environments](https://www.ria.ee/en/x-road-environments.html#v6).
+
+Overall system is also designed in a way, that can be used by X-Road Centre for all X-Road members as well as for Member own monitoring (includes possibilities to monitor also members data exchange partners).
+
+The **database module** provides storage and synchronization between the other modules. 
 The database is implemented with the MongoDB technology: a non-SQL database with replication and sharding capabilities.
 
-## Installation (Linux)
+## Installation
 
 This document describes the installation steps for Ubuntu 16.04. For other Linux distribution, please refer to: [MongoDB 3.4 documentation](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-ubuntu/)
 
@@ -14,7 +21,8 @@ Add the MongoDB repository key and location:
 
 ```bash
 sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14518585931BC711F9BA15703C6
-echo "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.4.list
+echo "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.4 multiverse" \
+    | sudo tee /etc/apt/sources.list.d/mongodb-org-3.4.list
 ```
 
 Install MongoDB server and client tools
@@ -51,7 +59,8 @@ If not, then enable and restart MongoDB daemon:
 
 ```bash
 sudo systemctl enable mongod.service
-# Created symlink from /etc/systemd/system/multi-user.target.wants/mongod.service to /lib/systemd/system/mongod.service.
+# Created symlink from /etc/systemd/system/multi-user.target.wants/mongod.service \
+#    to /lib/systemd/system/mongod.service.
 sudo service mongod restart
 sudo service mongod status
 # Loaded: loaded (/lib/systemd/system/mongod.service; enabled; ...)
@@ -67,9 +76,9 @@ The database module requires the creation of the following users:
 
 The instructions below describes the creation of module users for **collector**, **corrector**, **reports**, **analyzer**, and **anonymizer** modules.
 
-* Note 1: The instructions assume "ee-dev" instances. For other instances replace the "ee-dev" suffix appropriately (example: "xtee-ci-xm", "ee-test", "EE"). 
+**Note 1:** The instructions assume "ee-dev" instances. For other instances replace the "ee-dev" suffix appropriately (example: "ee-test", "EE"). 
 
-* Note 2: Please refer to the specific configuration file of every module and set the MongoDB access to match the user and passwords created here, where:
+**Note 2:** Please refer to the specific configuration file of every module and set the MongoDB access to match the user and passwords created here, where:
 
 - INSTANCE: is the X-Road v6 instance
 - MONGODB_USER: is the instance-specific module user
@@ -102,7 +111,7 @@ mongo
 ```
 
 Inside the MongoDB client tool, create the **db_backup** user in the **admin** database. 
-Replace **BACKUP_PWD** with the desired password.
+Replace **BACKUP_PWD** with the desired password (keep BACKUP_PWD in your password safe).
 
 ```
 use admin
@@ -118,8 +127,8 @@ mongo
 ```
 
 Inside the MongoDB client tool, create the **collector_ee-dev** user in the **auth_db** database. 
-Replace **MODULE_PWD** with the desired module password. 
-The collector user has "readWrite" permissions to "query_db" and "collector_state" databases (here, **query_db_ee-dev** and **collector_state_ee-dev**)
+Replace **MODULE_PWD** with the desired module password.
+The collector user has "readWrite" permissions to "query_db" and "collector_state" databases (here, **query_db_ee-dev** and **collector_state_ee-dev**).
 
 ```
 use auth_db
@@ -138,7 +147,7 @@ mongo
 
 Inside the MongoDB client tool, create the **corrector_ee-dev** user in the **auth_db** database. 
 Replace **MODULE_PWD** with the desired module password.
-The corrector user has "readWrite" permissions to "query_db" and "corrector_state" databases (here, **query_db_ee-dev** and **corrector_state_ee-dev**)
+The corrector user has "readWrite" permissions to "query_db" and "corrector_state" databases (here, **query_db_ee-dev** and **corrector_state_ee-dev**).
 
 ```
 use auth_db
@@ -157,7 +166,7 @@ mongo
 
 Inside the MongoDB client tool, create the **reports_ee-dev** user in the **auth_db** database. 
 Replace **MODULE_PWD** with the desired module password.
-The reports user has "read" permissions to "query_db" database and "readWrite" permission to "reports_state" database (here, **query_db_ee-dev** and **reports_state_ee-dev**)
+The reports user has "read" permissions to "query_db" database and "readWrite" permission to "reports_state" database (here, **query_db_ee-dev** and **reports_state_ee-dev**).
 
 ```
 use auth_db
@@ -176,8 +185,7 @@ mongo
 
 Inside the MongoDB client tool, create the **analyzer_ee-dev** user in the **auth_db** database. 
 Replace **MODULE_PWD** with the desired module password.
-The analyzer user has "read" permissions to "query_db" database and "readWrite" permission to "analyzer_database" database (here, **query_db_ee-dev** and **analyzer_database_ee-dev**)
-
+The analyzer user has "read" permissions to "query_db" database and "readWrite" permission to "analyzer_database" database (here, **query_db_ee-dev** and **analyzer_database_ee-dev**).
 
 ```
 use auth_db
@@ -196,7 +204,7 @@ mongo
 
 Inside the MongoDB client tool, create the **anonymizer_ee-dev** user in the **auth_db** database. 
 Replace **MODULE_PWD** with the desired module password.
-The anonymizer user has "read" permissions to "query_db" database (here, **query_db_ee-dev**)
+The anonymizer user has "read" permissions to "query_db" database (here, **query_db_ee-dev**).
 
 ```
 use auth_db
@@ -286,7 +294,8 @@ Open MongoDB configuration file in your favorite text editor (here, **vim** is u
 sudo vim /etc/mongod.conf
 ```
 
-Add the external IP (the IP seen by other modules in the network) to enable the IP biding. In this example, the machine running MongoDB (opmon.ci.kit) has the Ethernet IP 10.0.24.35, and therefore, the following line is edited in the configuration file:
+Add the external IP (the IP seen by other modules in the network) to enable the IP biding. 
+In this example, the machine running MongoDB (opmon.ci.kit) has the Ethernet IP 10.0.24.35, and therefore, the following line is edited in the configuration file:
 
 ```
 bindIp: 127.0.0.1,10.0.24.35
@@ -321,11 +330,11 @@ Log files:
 
 ## Database Structure
 
-#### MongoDB Structure: databases, collections
+### MongoDB Structure: databases, collections
 
 #### Index Creation
 
-The example here uses the database "query_db_ee-dev", and the same procedure should be used to additional databases (example: query_db_ee-test and query_db_xtee-ci-xm) 
+The example here uses the database "query_db_ee-dev", and the same procedure should be used to additional databases (example: "query_db_ee-test", "EE") 
 
 Enter MongoDB client as root:
 
@@ -397,6 +406,7 @@ and for a complete list of MongoDB monitoring tools, please refer to:
 https://docs.mongodb.com/master/administration/monitoring/
 ```
 
+
 ## Database backup
 
 To perform backup of database, it is recommended to use the mongodb tools **mongodump** and **mongorestore** 
@@ -404,11 +414,10 @@ To perform backup of database, it is recommended to use the mongodb tools **mong
 For example, to perform a complete database backup, execute:
 
 ```
-mongodump -u db_backup -p BACKUP_PWD --gzip --authenticationDatabase admin --out=MDB_BKPFILE
+mongodump -u db_backup -p BACKUP_PWD --gzip --authenticationDatabase admin --out=MDB_BKPDIR
 ```
 
-where BACKUP_PWD is password for backup user set in paragraph 'Configure **backup** user' and 
-MDB_BKPFILE is output directory for backup.
+where BACKUP_PWD is password for backup user set in paragraph 'Configure backup user' and MDB_BKPDIR is output directory for backup.
 
 For additional details and recommendations, please check:
 
