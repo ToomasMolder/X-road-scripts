@@ -1,4 +1,4 @@
-# X-Road project - Analysis Module
+# X-Road v6 monitor project - Analysis Module
 
 
 ## About
@@ -48,20 +48,27 @@ In the core of the Analyzer are *models* that are responsible for detecting diff
 1) the number or requests in this time interval,
 2) mean request size (if exists --- ```clientRequestSize```, otherwise ```producerRequestSize```) in this time interval,
 3) mean response size (if exists --- ```clientResponseSize```, otherwise ```producerResponseSize```) in this time interval,
-4) mean request duration (```totalDuration```) in this time interval,
-5) mean response duration (```producerDurationProducerView```) in this time interval.
+4) mean client duration (```totalDuration```) in this time interval,
+5) mean producer duration (```producerDurationProducerView```) in this time interval.
 Each of these metrics are compared to historical values for the same service call during a similar time interval (e.g. on the same weekday and the same hour). In particular, the model considers the mean and the standard deviation (std) of historical values and calculates the *z-score* for the current value: ```z_score = abs(current_value - historic_mean) / historic_std```.
-Based on this score, the model estimates the confidence that the current value comes from a different distribution than the historic values. If the confidence is higher than a specified confidence threshold, the current value is reported as a potential incident. The type of found anomalies (```anomalous_metric```) will be one of [request_count, mean_request_size, mean_response_size, mean_request_duration, mean_response_duration].
+Based on this score, the model estimates the confidence that the current value comes from a different distribution than the historic values. If the confidence is higher than a specified confidence threshold, the current value is reported as a potential incident. The type of found anomalies (```anomalous_metric```) will be one of [request_count, mean_request_size, mean_response_size, mean_client_duration, mean_producer_duration].
  
 
 ## Scripts
 
-Before finding anomalies using the AveragesByTimeperiodModel, the model needs to be trained. Namely, it needs to calculate the historic means and standard deviations for each relevant time interval. The data used for training should be as "normal" (anomaly-free) as possible. Therefore, it is recommended that the two phases, training and finding anomalies, use data from different time periods. 
-Therefore, the following approach is suggested:
-1) For recent requests, the model is used to *find* anomalies, which will be recorded as potential incidents.
-2) The found anomalies are shown in the Analyzer UI for a specified time period (e.g. 1 week), after which they are considered "expired" and will not be shown anymore.
-3) Anomalies/incidents that have expired are used to update (or retrain) the model. Requests that are part of a "true incident" (an anomaly that was marked as "incident" before the expiration date) are not used to update the model. This way, the the historic averages remain to describe the "normal" behaviour.
-Also, as the model aggregates requests for certain time intervals (e.g. hour), it is recommended to use data only from time intervals that have already completed. This is to avoid cases where, for example, the number of requests within 10 minutes is compared to the (historic) number of requests within 1 hour, as such comparison would almost certainly yield an anomaly. 
+Before finding anomalies using the AveragesByTimeperiodModel, the model needs to be trained. Namely, it needs to calculate the historic means and standard deviations for each relevant time interval. The data used for training should be as "normal" (anomaly-free) as possible. Therefore, it is recommended that the two phases, training and finding anomalies, use data from different time periods. To ensure these goals, the **regular** processes for anomaly finding and model training proceed as follows:
+
+1. For recent requests, the existing model is used to *find* anomalies, which will be recorded as potential incidents. The found anomalies are shown in the Analyzer UI for a specified time period (e.g. 10 days), after which they are considered "expired" and will not be shown anymore.
+2. Anomalies/incidents that have expired are used to update (or retrain) the model. Requests that are part of a "true incident" (an anomaly that was marked as "incident" before the expiration date) are not used to update the model. This way, the historic averages remain to describe the "normal" behaviour. Note that updating the model does not change the anomalies that have already been found (the existing anomalies are not recalculated).
+
+Also, as these processes aggregate requests by certain time intervals (e.g. hour), only the data from time intervals that have already completed are used. This is to avoid situations where, for example, the number of requests within 10 minutes is compared to the (historic) number of requests within 1 hour, as such comparison would almost certainly yield an anomaly. 
+
+It is recommended that the model is given some time to learn the behaviour of a particular service call (e.g. 3 months). Therefore, the following approach is implemented for **new** service calls:
+1. For the first 3 months since the first request was made by a given service call, no anomalies are reported (this is the training period)
+2. After these 3 months have passed, the first anomalies for the service call will be reported. Both the model is trained (i.e. the historic averages are calculated) and anomalies are found using the same data from the first 3 months.
+3. The found anomalies are shown in the analyzer user interface for 10 days, during which their status can be marked. During these 10 days, the model version is fixed and incoming data are analyzed (i.e. the anomalies are found) based on the initial model (built on the first 3-months data).
+4. After these 10 days (i.e. when the first incidents have expired), the model is retrained, considering the feedback from the first anomalies and the **regular** analyzer process is started (see above).
+
 
 The approach described above is implemented in two scripts, located in the folder **analysis_module/analyzer**:
 
@@ -101,11 +108,11 @@ The Analyzer back-end can be configured from **analysis_module/analyzer/analyzer
 | <timeunits\>_similarity_time_window | Settings for a given similarity time window. For example, if the aggregation time window is hour, the similarity time window can be hour+weekday, meaning that the aggregated values from a given hour are compared to historic values collected from the same hour on the same weekday. The following attributes should be speficied:  <br> 1)  'timeunit_name' - a name (can be chosen arbitrarily) that will be used to refer to the similarity window, <br> 2) 'agg_window' - one of <timeunit\>_aggregation_time_window, <br> 3) 'similar_periods' - a list of time periods. A given set of aggregated requests will be compared to the combination of these periods. Each value in the list is used to extract the necessary time component from a pandas.DatetimeIndex object, so each value should be one of (year, month, day, hour, minute, second, microsecond, nanosecond, dayofyear, weekofyear, week, dayofweek, weekday, quarter). (http://pandas.pydata.org/pandas-docs/version/0.17.0/api.html#time-date-components) | hour_weekday_similarity_time_window = {'timeunit_name': 'hour_weekday', 'agg_window': hour_aggregation_time_window, 'similar_periods': ['hour', 'weekday']\} | 
 | time_windows | A dictionary of pairs (anomaly_type, previously defined <timeunit\>_aggregation_time_window) for anomaly types that do not require comparison with historic values. The specified time window will be used to aggregate requests for the given anomaly type. | time_windows = \{ <br> "failed_request_ratio": hour_aggregation_time_window, <br> "duplicate_message_ids": day_aggregation_time_window, <br> "time_sync_errors": hour_aggregation_time_window} |
 | historic_averages_time_windows | A list of previously defined <timeunits\>_similarity_time_windows for anomaly types that require comparison with historic averages. A separate AveragesByTimeperiodModel is constructed for each such similarity time window. | historic_averages_time_windows = [hour_weekday_similarity_time_window, weekday_similarity_time_window] |
-| historic_averages_thresholds | A dictionary of confidence thresholds used in the AveragesByTimeperiodModel(s). An observation (an aggregation of requests within a given time window) is considered an anomaly if the confidence (estimated by the model) of being an anomaly is larger than this threshold. | historic_averages_thresholds = \{ <br> 'request_count': 0.997, <br> 'mean_request_size': 0.95, <br> 'mean_response_size': 0.95, <br> 'mean_client_duration': 0.95, <br> 'mean_producer_duration': 0.95} ] |
+| historic_averages_thresholds | A dictionary of confidence thresholds used in the AveragesByTimeperiodModel(s). An observation (an aggregation of requests within a given time window) is considered an anomaly if the confidence (estimated by the model) of being an anomaly is larger than this threshold. | historic_averages_thresholds = \{ <br> 'request_count': 0.95, <br> 'mean_request_size': 0.95, <br> 'mean_response_size': 0.95, <br> 'mean_client_duration': 0.95, <br> 'mean_producer_duration': 0.95} ] |
 | time_sync_monitored_lower_thresholds | A dictionary of minimum value thresholds used in the TimeSyncModel. If the observed value is smaller than this threshold, an incident is reported. | time_sync_monitored_lower_thresholds = \{'requestNwDuration': 0, <br> 'responseNwDuration': 0} |
 | failed_request_ratio_threshold | Used in the FailedRequestRatioModel. If the ratio of failed requests in a given aggregation window is larger than this threshold, an incident is reported. | failed_request_ratio_threshold = 0.9 |
-| SAVED_MODELS_DIR | A directory where the trained AveragesByTimeperiodModel(s) are saved. | SAVED_MODELS_DIR = "saved_models" |
-| incident_expiration_time | After this time has passed since the creation of an anomaly (potential incident), the requests involved in these anomalies can be used to update the historic averages models. The time is specified in minutes. It is recommended to keep this parameter the same as the respective parameter in the front-end configuration. | incident_expiration_time = 10080 <br> (anomalies will expire after 1 week) |
+| incident_expiration_time | After this time has passed since the creation of an anomaly (potential incident), the requests involved in these anomalies can be used to update the historic averages models. The time is specified in minutes. It is recommended to keep this parameter the same as the respective parameter in the front-end configuration. | incident_expiration_time = 14400 <br> (anomalies will expire after 10 days) |
+| training_period_time | After this time has passed since a given service call's first request, the first version of the historic averages model is trained and the first anomalies reported. The time is specified in months. | training_period_time = 3 <br> (training period lasts for 3 months) |
 
 
 ### Front-end
@@ -124,22 +131,30 @@ The user interface can be configured from **analysis_module/analyzer_ui/gui/gui_
 | relevant_fields_for_example_requests_alternative | A list of database fields from the clean_data collection, which appear at the top level of the request but are analogous for 'client' and 'producer' side, to be shown in the *example requests* table. | relevant_fields_for_example_requests_alternative = [<br>('responseSize', 'clientResponseSize', 'producerResponseSize'),<br>('requestSize', 'clientRequestSize', 'producerRequestSize')] |
 | example_request_limit | Up to this many "example" requests will be shown for each anomaly. | example_request_limit = 10 |
 | accepted_date_formats | When filtering anomalies according to a date field, the user input must be in one of these date formats. | accepted_date_formats = ["%a, %Y-%m-%d %H:%M", "%Y-%m-%d %H:%M", "%Y-%m-%d", "%d/%m/%Y %H:%M", "%d/%m/%Y"] |
-| incident_expiration_time | An anomaly will be shown in the user interface only until this time has passed since the creation of the anomaly. The time is specified in minutes. It is recommended to keep this parameter the same as the respective parameter in the back-end configuration. | incident_expiration_time = 10080 <br> (anomalies will expire after 1 week) |
+| incident_expiration_time | An anomaly will be shown in the user interface only until this time has passed since the creation of the anomaly. The time is specified in minutes. It is recommended to keep this parameter the same as the respective parameter in the back-end configuration. | incident_expiration_time = 14400 <br> (anomalies will expire after 10 days) |
 
 ### Database
-In order to work properly, both the back-end and front-end of the Analysis module need configurations for accessing the database. These settings are specified separately:
+In order to work properly, both the back-end and front-end of the Analysis module need configurations for accessing the database. These settings are specified in a single file: **analysis_module/db_conf.py**.
 
-**Analyzer:** analysis_module/analyzer/db_conf.py
-**Interface:** analysis_module/analyzer_ui/gui/db_conf.py
+The database configurations should be adjusted according to the x-road instance (ee-dev, ee-test, xtee-ci-xm).
   
-In general, these settings may remain unchanged.
+| Parameter   |      Description     |
+|:----------:|:-------------:|:------:|
+| MDB_USER |   Username for accessing the database   |   MDB_USER = "dev_user" |
+| MDB_PWD |   Password for accessing the database   |   MDB_PWD = "password_for_dev_user" |
+| MDB_SERVER |   Database server location  |   MDB_SERVER = "opmon.ci.kit" |
+| MONGODB_URI |   Database URI  |   MONGODB_URI = "mongodb://\{0}:\{1}@\{2}/auth_db".format(MDB_USER, MDB_PWD, MDB_SERVER) |
+| MONGODB_QD |   Query database name   |   MONGODB_QD = "query_db_ee-dev" |
+| MONGODB_AD |   Analyzer database name   |   MONGODB_AD = "analyzer_database_ee-dev" |
 
 ## Databases
 
-The Analyzer takes as input data from the clean_data database. The results will be written to incident database (a MongoDB instance). Namely, there are two collections in the incident database:
+The Analyzer takes as input data from the Query database (clean_data collection). The results will be written to Analyzer database (a MongoDB instance). Namely, there are four collections in the incident database:
 
 **incident:** All found anomalies will be saved here, as well as the last status of each anomaly/incident (automatic or marked by the user).
 **incident_timestamps:** This collection keeps track of the times when the historic averages model was last updated. Also, the last anomaly-finding times for each anomaly type will be saved here.
+**incident_model:** The historic averages models are saved here.
+**service_call_first_timestamps:** Timestamps for each service call's first request, first model training, first anomaly finding, and first model retraining.
 
 ### Incident collection schema
 
@@ -184,3 +199,52 @@ This collection is used internally, to ensure that the scripts for finding anoma
 | model | The name of the Analyzer model. | hour_weekday, weekday, failed_request_ratio, duplicate_message_ids, time_sync_errors |
 | type | Type of the timestamp. | last_fit_timestamp, last_transform_timestamp |
 | timestamp | The timestamp. | A datetime value. |
+
+### Incident model collection schema
+
+This collection saves the historic averages models. The collection is 1) updated when the model is being retrained / updated, and 2) retrieved when anomalies are being found.
+
+| Field   |      Description      |  Possible values  and data type |
+|:----------:|:-------------:|:------:|
+| _id | Automatically generated id for the collection entry. | A MongoDB ObjectId value. |
+| clientMemberClass | The clientMemberClass (part of the service call) related to this model row.| |
+| clientMemberCode | The clientMemberCode (part of the service call) related to this model row.| |
+| clientSubsystemCode | The clientSubsystemCode (part of the service call) related to this model row.| |
+| clientXRoadInstance | The clientXRoadInstance (part of the service call) related to this model row.| |
+| serviceCode | The serviceCode (part of the service call) related to this model row.| |
+| serviceMemberClass | The serviceMemberClass (part of the service call) related to this model row.| |
+| serviceMemberCode | The serviceMemberCode (part of the service call) related to this model row.| |
+| serviceSubsystemCode | The serviceSubsystemCode (part of the service call) related to this model row.| |
+| serviceVersion | The serviceVersion (part of the service call) related to this model row.| |
+| serviceXRoadInstance | The serviceXRoadInstance (part of the service call) related to this model row.| |
+| <metric\>_mean | Historic average (mean) of the given metric (request_count, mean_response_size, mean_request_size, mean_client_duration, mean_producer_duration) for the given service call in the given time period. | numeric |
+| <metric\>_std | Standard deviation of the given metric for the given service call in the given time period. | numeric |
+| <metric\>_count |Number of values (from aggregated time periods) that are used to calculate the mean and std. | integer |
+| <metric\>_sum | Sum of the values for the given metric. Necessary for incrementally updating the standard deviation values. | integer |
+| <metric\>_ssq | Sum of squares of the given metric. Necessary for incrementally updating the standard deviation values. | integer |
+| model_name | Name of the model. | hour_weekday, weekday |
+| similar_periods | Concatenated values of the "similar" time periods. | E.g. for model "hour_weekday", similar_periods = "12_1" refer to 12 o'clock on Mondays.
+| model_creation_timestamp | Creation time of the model (same for all service calls, even if they were added later). | date |
+| version | Version of the model. Version gets incremented with every update. Only the last version of the model for each model_name is saved. | integer |
+
+### Service call first timestamps collection schema
+
+This collection is used to keep track of the phases that each service call is in: training, first incidents reported but model not retrained, regular (model retrained). 
+
+| Field   |      Description      |  Possible values  and data type |
+|:----------:|:-------------:|:------:|
+| _id | Automatically generated id for the collection entry. | A MongoDB ObjectId value. |
+| clientMemberClass | The clientMemberClass (part of the service call).| |
+| clientMemberCode | The clientMemberCode (part of the service call).| |
+| clientSubsystemCode | The clientSubsystemCode (part of the service call).| |
+| clientXRoadInstance | The clientXRoadInstance (part of the service call).| |
+| serviceCode | The serviceCode (part of the service call).| |
+| serviceMemberClass | The serviceMemberClass (part of the service call).| |
+| serviceMemberCode | The serviceMemberCode (part of the service call).| |
+| serviceSubsystemCode | The serviceSubsystemCode (part of the service call).| |
+| serviceVersion | The serviceVersion (part of the service call).| |
+| serviceXRoadInstance | The serviceXRoadInstance (part of the service call).| |
+| first_request_timestamp | Timestamp of the first request made by the service call. | date |
+| first_model_train_timestamp | Timestamp of the first model trained for the service call. If the service call is still in the training phase, the timestamp is None. | date |
+| first_incident_timestamp | Timestamp when the first anomaly-finding phase was performed for the service call. If the service call is still in the training phase, the timestamp is None. | date |
+| first_model_retrain_timestamp | Timestamp when the second version of the model was trained (after the training period has passed and first incidents have expired). When the service call is still in training phase or the time for expiration of first incidents has not passed, the timestamp is None.  If this timestamp is present, the service call has reached the *regular* analysis phase.  | date |
