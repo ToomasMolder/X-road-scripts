@@ -11,8 +11,6 @@ The system is distributed over 7 servers, organized as follows:
 
 ![System overview](img/system_overview.png "System overview")
 
-The following sections describes each of these modules.
-
 ## Operational specifications
 
 ### Data flow expectation
