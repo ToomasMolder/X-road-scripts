@@ -32,17 +32,17 @@ This sections describes the necessary steps to install the **collector module** 
 
 ## Networking
 
-### Outgoing:
+### Outgoing
 
 - The collector module needs http-access to the X-Road CENTRALSERVER to get from global configuration list of members security servers.
 - The collector module needs http-access to the current member SECURITY SERVER to get the data is collected.
 - The collector module needs access to the Database Module (see [Database_Module](database_module.md)).
 
-### Incoming: 
+### Incoming
 
 No incoming connection is needed in the collector module.
 
-### Install required packages
+## Install required packages
 
 To install the necessary packages, execute the following commands:
 
@@ -55,7 +55,7 @@ sudo pip3 install numpy==1.11
 sudo pip3 install tqdm==4.14
 ```
 
-### Install collector module
+## Install collector module
 
 The collector module uses the system user **collector** and group **opmon**. To create them, execute:
 
@@ -126,6 +126,8 @@ To check if the collector module is properly installed in the collector user, ex
 sudo crontab -l -u collector
 ```
 
+## Monitoring and Status
+
 ### Logging 
 
 The **collector module** produces log files that, by default, is stored at:
@@ -133,6 +135,8 @@ The **collector module** produces log files that, by default, is stored at:
 ```
 /srv/app/ee-dev/logs
 ```
+
+### Heartbeat
 
 The heartbeat files are written to:
 
