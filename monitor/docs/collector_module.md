@@ -102,11 +102,15 @@ If needed, edit necessary modifications to the settings file using your favorite
 sudo vi /srv/app/ee-dev/collector_module/settings.py
 ```
 
+## Manual usage
+
 To check collector manually as collector user, execute:
 
 ```bash
 cd /srv/app/ee-dev/; sudo -u collector ./collector_module/cron_collector.sh update
 ```
+
+## CRON usage
 
 Add **collector module** as a **cron job** to the **collector** user.
 
