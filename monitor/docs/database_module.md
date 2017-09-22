@@ -1,4 +1,4 @@
-# X-Road project - Database Module
+# X-Road v6 monitor project - Database Module
 
 
 ## About
@@ -6,17 +6,15 @@
 The database module provides storage and synchronization between the other modules, namely: Collector, Corrector, Reports, OpenData, Analyzer. 
 The database is implemented with the MongoDB technology: a non-SQL database with replication and sharding capabilities.
 
-
 ## Installation (Linux)
 
-This document describes the installation steps for Ubuntu 14.04. For other Linux distribution, please refer to: [MongoDB 3.4 documentation](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-ubuntu/)
-
+This document describes the installation steps for Ubuntu 16.04. For other Linux distribution, please refer to: [MongoDB 3.4 documentation](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-ubuntu/)
 
 Add the MongoDB repository key and location:
 
 ```bash
 sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 0C49F3730359A14518585931BC711F9BA15703C6
-echo "deb [ arch=amd64 ] http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/3.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.4.list
+echo "deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.4.list
 ```
 
 Install MongoDB server and client tools
@@ -26,23 +24,60 @@ sudo apt-get update
 sudo apt-get install -y mongodb-org
 ```
 
-
 ## Configuration
 
 This section describes the necessary MongoDB configuration. It assumes that MongoDB is installed and running.
 
+To check if the MongoDB daemon is active, run:
 
-#### User Configuration
+```bash
+sudo service mongod status
+```
+
+To start MongoDB daemon, run:
+
+```bash
+sudo service mongod start
+```
+
+To ensure that MongoDB daemon start is enabled after system start, run and check, that `/lib/systemd/system/mongod.service; enabled` is present:
+
+```bash
+sudo service mongod status
+# Loaded: loaded (/lib/systemd/system/mongod.service; disabled; ...)
+```
+
+If not, then enable and restart MongoDB daemon:
+
+```bash
+sudo systemctl enable mongod.service
+# Created symlink from /etc/systemd/system/multi-user.target.wants/mongod.service to /lib/systemd/system/mongod.service.
+sudo service mongod restart
+sudo service mongod status
+# Loaded: loaded (/lib/systemd/system/mongod.service; enabled; ...)
+```
+
+### User Configuration
 
 The database module requires the creation of the following users: 
 
-The **root** user controls the configuration of the database.
-The **dev_user** is used by other modules to access the database.
+* A **root** user to controls the configuration of the database.
+* A backup specific user to backup data collections.
+* Module specific users, to provide access and limit permissions.
 
+The instructions below describes the creation of module users for **collector**, **corrector**, **reports**, **analyzer**, and **anonymizer** modules.
 
-######## Configure **root** user
+* Note 1: The instructions assume "ee-dev" instances. For other instances replace the "ee-dev" suffix appropriately (example: "xtee-ci-xm", "ee-test", "EE"). 
 
-Enter MongoDB client and create a admin user, where ROOT_PWD should be changed with the desired database admin password.
+* Note 2: Please refer to the specific configuration file of every module and set the MongoDB access to match the user and passwords created here, where:
+
+- INSTANCE: is the X-Road v6 instance
+- MONGODB_USER: is the instance-specific module user
+- MONGODB_PWD: is the MONGODB_USER password 
+- MONGODB_SERVER: is the database host (example: "opmon.ci.kit")
+- MONGODB_SUFFIX: is the database suffix, same as INSTANCE (example: 'ee-dev')
+
+#### Configure **root** user:
 
 Enter MongoDB client tool:
 
@@ -50,14 +85,150 @@ Enter MongoDB client tool:
 mongo
 ```
 
-Inside the MongoDB client tool, create the **root** user in the **admin** database. Replace **ROOT_PWD** with the desired root password.
+Inside the MongoDB client tool, create the **root** user in the **admin** database. 
+Replace **ROOT_PWD** with the desired root password (keep ROOT_PWD in your password safe).
 
 ```
 use admin
 db.createUser( { user: "root", pwd: "ROOT_PWD", roles: ["root"] })
 ```
 
-######## Enable Rotate Log Files
+#### Configure **backup** user:
+
+Enter MongoDB client tool:
+
+```bash
+mongo
+```
+
+Inside the MongoDB client tool, create the **db_backup** user in the **admin** database. 
+Replace **BACKUP_PWD** with the desired password.
+
+```
+use admin
+db.createUser( { user: "db_backup", pwd: "BACKUP_PWD", roles: ["backup"] })
+```
+
+#### Configure **collector** module user:
+
+Enter MongoDB client tool:
+
+```bash
+mongo
+```
+
+Inside the MongoDB client tool, create the **collector_ee-dev** user in the **auth_db** database. 
+Replace **MODULE_PWD** with the desired module password. 
+The collector user has "readWrite" permissions to "query_db" and "collector_state" databases (here, **query_db_ee-dev** and **collector_state_ee-dev**)
+
+```
+use auth_db
+db.createUser( { user: "collector_ee-dev", pwd: "MODULE_PWD", roles: []})
+db.grantRolesToUser( "collector_ee-dev", [{ role: "readWrite", db: "query_db_ee-dev"}])
+db.grantRolesToUser( "collector_ee-dev", [{ role: "readWrite", db: "collector_state_ee-dev"}])
+```
+
+#### Configure **corrector** module user:
+
+Enter MongoDB client tool:
+
+```bash
+mongo
+```
+
+Inside the MongoDB client tool, create the **corrector_ee-dev** user in the **auth_db** database. 
+Replace **MODULE_PWD** with the desired module password.
+The corrector user has "readWrite" permissions to "query_db" and "corrector_state" databases (here, **query_db_ee-dev** and **corrector_state_ee-dev**)
+
+```
+use auth_db
+db.createUser( { user: "corrector_ee-dev", pwd: "MODULE_PWD", roles: []})
+db.grantRolesToUser( "corrector_ee-dev", [{ role: "readWrite", db: "query_db_ee-dev"}])
+db.grantRolesToUser( "corrector_ee-dev", [{ role: "readWrite", db: "corrector_state_ee-dev"}])
+```
+
+#### Configure **reports** module user:
+
+Enter MongoDB client tool:
+
+```bash
+mongo
+```
+
+Inside the MongoDB client tool, create the **reports_ee-dev** user in the **auth_db** database. 
+Replace **MODULE_PWD** with the desired module password.
+The reports user has "read" permissions to "query_db" database and "readWrite" permission to "reports_state" database (here, **query_db_ee-dev** and **reports_state_ee-dev**)
+
+```
+use auth_db
+db.createUser({ user: "reports_ee-dev", pwd: "MODULE_PWD", roles: [] })
+db.grantRolesToUser( "reports_ee-dev", [{ role: "read", db: "query_db_ee-dev" }])
+db.grantRolesToUser( "reports_ee-dev", [{ role: "readWrite", db: "reports_state_ee-dev" }])
+```
+
+#### Configure **analyzer** module user:
+
+Enter MongoDB client tool:
+
+```bash
+mongo
+```
+
+Inside the MongoDB client tool, create the **analyzer_ee-dev** user in the **auth_db** database. 
+Replace **MODULE_PWD** with the desired module password.
+The analyzer user has "read" permissions to "query_db" database and "readWrite" permission to "analyzer_database" database (here, **query_db_ee-dev** and **analyzer_database_ee-dev**)
+
+
+```
+use auth_db
+db.createUser({ user: "analyzer_ee-dev", pwd: "MODULE_PWD", roles: [] })
+db.grantRolesToUser( "analyzer_ee-dev", [{ role: "read", db: "query_db_ee-dev" }])
+db.grantRolesToUser( "analyzer_ee-dev", [{ role: "readWrite", db: "analyzer_database_ee-dev" }])
+```
+
+#### Configure **anonymizer** module user:
+
+Enter MongoDB client tool:
+
+```bash
+mongo
+```
+
+Inside the MongoDB client tool, create the **anonymizer_ee-dev** user in the **auth_db** database. 
+Replace **MODULE_PWD** with the desired module password.
+The anonymizer user has "read" permissions to "query_db" database (here, **query_db_ee-dev**)
+
+```
+use auth_db
+db.createUser({ user: "anonymizer_ee-dev", pwd: "MODULE_PWD", roles: [] })
+db.grantRolesToUser( "anonymizer_ee-dev", [{ role: "read", db: "query_db_ee-dev" }])
+```
+
+#### Check user configuration and permissions
+
+To check if all users and configurations were properly created, list all users and verify their roles using the following commands:
+
+##### Check **root** and **db_backup**
+
+From mongo client tools:
+
+```
+use admin
+db.getUsers()
+```
+
+##### Check **collector**, **corrector**, **reports**, **analyzer**, **anonymizer**
+
+From mongo client tools:
+
+```
+use auth_db
+db.getUsers()
+```
+
+### MongoDB Configuration
+
+#### Enable Rotate Log Files
 
 Enter MongoDB client tool:
 
@@ -72,32 +243,11 @@ use admin
 db.runCommand( { logRotate : 1 } )
 ```
 
-
-######## Configure **dev_user** user
-
-
-Enter MongoDB client tool:
-
-```bash
-mongo
-```
-
-Inside the MongoDB client tool, create the **dev_user** user in the **auth_db** database. Replace **DEV_USER_PWD** with the desired root password.
-
-```
-use auth_db
-db.createUser( { user: "dev_user", pwd: "DEV_USER_PWD", roles: [{ role: "dbOwner", db: "query_database" }, { role: "dbOwner", db: "collector_state" }, { role: "dbOwner", db: "analyzer_database" }, { role: "dbOwner", db: "corrector_state"}, { role: "dbOwner", db: "query_db_ee-dev"}, { role: "dbOwner", db: "query_db_ee-test"}, { role: "dbOwner", db: "query_db_xtee-ci-xm"}, { role: "readAnyDatabase", db: "admin"}, { role: "dbOwner", db: "reports_state"}]})
-```
-
-
-#### MongoDB Configuration
-
-
-######## Enable MongoDB authentication
+#### Enable MongoDB authentication
 
 MongoDB default install does not enable authentication. The following steps are used to configure MongoDB security authorization.
 
-**NOTE:** The **root** user (database **admin**) needs to exist already. See previous section.
+**NOTE:** The **root** user (database **admin**) needs to exist already. See section 'Configure **root** user'.
 
 To enable MongoDB security authorization, edit the **mongod.conf** configuration file using your favorite text editor (here, **vim** is used).
 
@@ -118,8 +268,15 @@ After saving the alterations, the MongoDB service needs to be restarted. This ca
 sudo service mongod restart
 ```
 
+* NOTE: After enabling authentication it will be needed to specify database, user and password when connecting to mongo client tools. For example:
 
-######## Enable access from other machines
+```bash
+mongo admin -u root -p
+# or
+mongo auth_db -u collector_ee_dev -p
+```
+
+#### Enable access from other machines
 
 To make MongoDB services available in the modules network (see System Architecture)[system_architecture.md], the following configuration is necessary:
 
@@ -141,12 +298,10 @@ After saving the alterations, the MongoDB service needs to be restarted. This ca
 sudo service mongod restart
 ```
 
-
-#### Network Configuration
+### Network Configuration
 
 The MongoDB interface is exposed by default in the port **27017**
 Make sure the port is allowed in the firewall configuration.
-
 
 ### Log Configuration
 
@@ -164,13 +319,9 @@ Log files:
 /var/log/mongodb
 ```
 
-To enable rotate log, please refer to the section **Enable Rotate Log Files** in this document.
-
-
 ## Database Structure
 
 #### MongoDB Structure: databases, collections
-
 
 #### Index Creation
 
@@ -204,20 +355,67 @@ db.clean_data.createIndex({'producer.requestInTs': 1})
 db.clean_data.createIndex({'producer.serviceMemberCode': 1})
 db.clean_data.createIndex({'producer.serviceSubsystemCode': 1})
 db.clean_data.createIndex({'producerHash': 1})
-db.clean_data.createIndex({'correctorStatus': 1})
 db.clean_data.createIndex({'matchingType': 1})
 
 db.raw_messages.createIndex({'insertTime': 1})
 db.raw_messages.createIndex({'messageId': 1})
 ```
 
-
 ## Monitoring and Status
 
-To check the database status, use the command:
+MongoDB runs as a daemon process. It is possible to stop, start and restart the database with the following commands:
 
+* Check stop
+```bash
+sudo service mongod stop
+```
+
+* Check start
+```bash
+sudo service mongod start
+```
+
+* Check restart
+```bash
+sudo service mongod restart
+```
+
+* Check status
 ```bash
 sudo service mongod status
 ```
 
-    
+It is also possible to monitor MongoDB with a GUI interface using the MongoDB Compass. For specific instructions, please refer to:
+
+```
+https://www.mongodb.com/products/compass
+```
+
+and for a complete list of MongoDB monitoring tools, please refer to:
+
+```
+https://docs.mongodb.com/master/administration/monitoring/
+```
+
+## Database backup
+
+To perform backup of database, it is recommended to use the mongodb tools **mongodump** and **mongorestore** 
+
+For example, to perform a complete database backup, execute:
+
+```
+mongodump -u db_backup -p BACKUP_PWD --gzip --authenticationDatabase admin --out=$MDB_BKPFILE
+```
+
+where BACKUP_PWD is password for backup user set in paragraph 'Configure **backup** user' and 
+MDB_BKPFILE is output directory for backup
+
+For additional details and recommendations, please check:
+
+```
+https://docs.mongodb.com/manual/tutorial/backup-and-restore-tools/
+```
+
+---
+
+![](img/eu_regional_development_fund_horizontal_div_15.png "European Union | European Regional Development Fund | Investing in your future")
