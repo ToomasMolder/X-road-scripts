@@ -2,7 +2,7 @@
 
 ## About
 
-The database module is part of [X-Road v6 monitor project](../readme.md), which includes modules of [Database module (this document)](database_module.md), [Collector module (this document)](collector_module.md), [Corrector module](corrector_module.md), [Analysis module](analysis_module.md), [Reports module](reports_module.md) and [Opendata module](opendata_module.md).
+The database module is part of [X-Road v6 monitor project](../readme.md), which includes modules of [Database module (this document)](database_module.md), [Collector module](collector_module.md), [Corrector module](corrector_module.md), [Analysis module](analysis_module.md), [Reports module](reports_module.md) and [Opendata module](opendata_module.md).
 
 Overall system, its users and rights, processes and directories are designed in a way, that all modules can reside in one server and also in separate servers. 
 
