@@ -1,6 +1,5 @@
 # X-Road v6 monitor project
 
-
 ## Introduction
 
 The project maintains X-Road v6 log of service calls (queries). 
@@ -14,7 +13,6 @@ Instructions to install all components, as well as all modules source code, can 
 ```
 https://stash.ria.ee/projects/XTEE6/repos/monitor/browse 
 ```
-
 
 ## Installation instructions:
 
@@ -33,7 +31,7 @@ The modules should be set up in the following order:
 1. [Collector](./docs/collector_module.md)
 2. [Corrector](./docs/corrector_module.md)
 3. [Reports](./docs/reports_module.md)
-4. [Opendata + PostgreSQL](./docs/opendata_module.md)
+4. [Opendata](./docs/opendata_module.md)
 5. [Analyzer](./docs/analysis_module.md) (in progress)
 
 ## Programming language
