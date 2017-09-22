@@ -2,7 +2,9 @@
 
 ## Configuration file parameters
 
-Following subsections describe all the [configuration file](../../opendata_module/anonymizer/opendata_config.p) parameters. 
+Following subsections describe all the `settings.py` parameters. 
+
+**Note:** Anonymizer and Interface have different available parameters.
 
 #### Anonymizer
 
