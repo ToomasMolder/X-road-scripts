@@ -309,7 +309,7 @@ sudo service mongod restart
 
 ### Network Configuration
 
-The MongoDB interface is exposed by default in the port **27017**
+The MongoDB interface is exposed by default in the port **27017**.
 Make sure the port is allowed in the firewall configuration.
 
 ### Log Configuration
