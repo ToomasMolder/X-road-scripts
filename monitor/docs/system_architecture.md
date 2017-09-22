@@ -17,12 +17,12 @@ The following sections describes each of these modules.
 
 ### Data flow expectation
 
-* It is expected to have maximum 1 billion (1 000 000 000) X-Road v6 service calls (queries) in production environment in 1 year period
-* Each query log might collected from both query partners (Client and Producer), id est maximum 2 billion (2 000 000 000) X-Road v6 service call logs in production environment in 1 year period:
+* It is expected to have maximum 1 billion (1 000 000 000) X-Road v6 **service calls (queries)** in production environment in 1 year period
+* Each query log might collected from both query partners (Client and Producer), id est maximum 2 billion (2 000 000 000) X-Road v6 service call **logs** in production environment in 1 year period:
   * 165 000 000 logs per month
   * 40 000 000 logs per week
   * 5 500 000 logs per day
-  * 231 000 logs per hour 
+  * 230 000 logs per hour 
   * 60 000 logs per 15 minute
 * Each of log records in JSON-format takes approximately 1 KB (one kilobyte).
 * Each query log is uploaded into MongoDB as 'raw_messages' and after correction kept there as 'clean_data'. Raw messages are purged periodically. Alternatively, log might kept in Collector HDD as disk file and loaded into system from there.
