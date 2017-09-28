@@ -1,0 +1,2 @@
+memberCode	subSystemCode	subSystemContactFirstName	subSystemContactLastName	subSystemContactEMail
+10000000	10000000-name	Firstname	Lastname	firstname.lastname@domain.com
