@@ -61,11 +61,11 @@ with open('RIHA_subsystemcode-contacts.txt', 'r') as f:
             if id3 not in email:
                 email[id3] = []
             # Avoiding duplicate addition if keys are the same
-            if id2<>id3:
+            if id2 != id3:
                 email[id3].append(val)
 
 
-#f = open('riha.json', 'w')
+# f = open('riha.json', 'w')
 jsonDataArr = []
 for line in sys.stdin:
     # Example: EE/GOV/70006317/monitoring
@@ -81,10 +81,12 @@ for line in sys.stdin:
         'subsystem_name': subSystemName[id] if id in subSystemName else {'et': '', 'en': ''},
         'email': email[id] if id in email else []
     }
-    #f.write(json.dumps(jsonData, indent=2, ensure_ascii=False)+'\n')
-    print json.dumps(jsonData, indent=2, ensure_ascii=False)
+    # f.write(json.dumps(jsonData, indent=2, ensure_ascii=False)+'\n')
+    # print (json.dumps(jsonData, indent=2, ensure_ascii=False))
     jsonDataArr.append(jsonData)
-#f.close()
+# f.close()
 
-with open('riha.json', 'w') as f:
-    json.dump(jsonDataArr, f, indent=2, ensure_ascii=False)
+# with open('riha.json', 'w') as f:
+#     json.dump(jsonDataArr, f, indent=2, ensure_ascii=False)
+
+print (json.dumps(jsonDataArr, indent=2, ensure_ascii=False))
