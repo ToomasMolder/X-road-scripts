@@ -1,0 +1,2 @@
+memberCode	memberName
+10000000	Company Test AS
