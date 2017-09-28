@@ -40,10 +40,11 @@ try:
             subsystemCode = subsystem.find("./subsystemCode").text
             foundServer = False
             if root.findall("./securityServer[client='{}']".format(subsystemId)):
-                if sys.version_info[0] < 3:
-                    print("{}/{}/{}/{}".format(instance, memberClass, memberCode, subsystemCode.encode('utf-8')))
-                else:
-                    print("{}/{}/{}/{}".format(instance, memberClass, memberCode, subsystemCode))
+                print(u"{}/{}/{}/{}".format(instance, memberClass, memberCode, subsystemCode))
+                # if sys.version_info[0] < 3:
+                    # print("{}/{}/{}/{}".format(instance, memberClass, memberCode, subsystemCode.encode('utf-8')))
+                # else:
+                    # print("{}/{}/{}/{}".format(instance, memberClass, memberCode, subsystemCode))
 except Exception as e:
     print(e)
     exit(0)
