@@ -1,0 +1,2 @@
+memberCode	v6 subSystemCode	subSystemName(et)	subSystemName(en)
+10000000	10000000-name	Ettevõtte Test X-tee v6 alamsüsteem	Company Test X-Road v6 subsystem
