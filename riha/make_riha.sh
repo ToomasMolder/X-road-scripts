@@ -2,31 +2,19 @@
 # Usage: make_riha.sh <Central Server IP/Name>
 #
 
-# XTEE-CI-XM
-# CENTRALSERVER="xtee7.ci.kit"
-#
-# ee-dev
-# CENTRALSERVER="195.80.109.140"
-#
-# ee-test
-# CENTRALSERVER="195.80.127.40"
-#
-# EE
-# CENTRALSERVER="213.184.41.178"
-
 if [ -z ${1} ] || [ ${1} = "-h" ] || [ ${1} = "--help" ]; then
     echo -e "Usage: ${0} <Central Server IP/Name>
-        The IP/Name of Central Server can be found in configuration anchor
+        The IP/Name of Central Server can be found in configuration anchor http://x-road.eu/packages/
         # XTEE-CI-XM
         # CENTRALSERVER=\"xtee7.ci.kit\"
         #
-        # ee-dev
+        # ee-dev http://x-road.eu/packages/ee-dev_public_anchor.xml
         # CENTRALSERVER=\"195.80.109.140\"
         #
-        # ee-test
+        # ee-test http://x-road.eu/packages/ee-test_public_anchor.xml
         # CENTRALSERVER=\"195.80.127.40\"
         #
-        # EE
+        # EE http://x-road.eu/packages/EE_public-anchor.xml
         # CENTRALSERVER=\"213.184.41.178\"
 "
     exit 1;
