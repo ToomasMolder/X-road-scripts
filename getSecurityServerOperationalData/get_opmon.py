@@ -16,6 +16,8 @@ import zlib
 import json
 import Queue
 import threading
+import datetime
+import os
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -78,7 +80,12 @@ REPEAT_MIN_RECORDS=50
 REPEAT_LIMIT=5
 
 # Path to the logs. Leave empty for current directory or add path with "/" at the end
-LOG_PATH = ""
+LOG_PATH = "./"
+now = datetime.datetime.now()
+LOG_PATH = LOG_PATH + "/" + '{:04d}'.format(now.year) + "/" + '{:02d}'.format(now.month) + "/" + '{:02d}'.format(now.day) + "/"
+
+if not os.path.exists(LOG_PATH):
+    os.makedirs(LOG_PATH)
 
 # Maximum log size (in bytes) before log rotation
 # 10000000 ~ 10Mb
@@ -88,9 +95,9 @@ LOG_MAX_SIZE = 100000000
 # Maximum amount of rotated logs to keep. Setting to 0 will disable log rotation
 LOG_BACKUP_COUNT = 100
 
-###################################
-# End of configuraable parameters #
-###################################
+##################################
+# End of configurable parameters #
+##################################
 
 
 
