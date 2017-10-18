@@ -6,7 +6,7 @@
 <h3>RIA OpenData Module</h3>
 <table width="100%" border="0">
 <tr>
-<th align="left" valign="top"><img src="ria_et.png" alt="Riigi Infosüsteemi Amet" width="389" height="156"><img src="x-road.png" alt="X-tee" width="196" height="78"></th>
+<th align="left" valign="top"><img src="ria_et.png" alt="Riigi Infosüsteemi Amet" width="389" height="156"><img src="xroad_et.png" alt="X-tee" width="196" height="78"></th>
 <th align="right" valign="top"><img src="eu_et.jpg" alt="Euroopa Liit Euroopa Regionaalarengu Fond | Eesti tuleviku heaks" width="356" height="206"></th>
 </tr>
 </table>
@@ -23,7 +23,7 @@
 <div class="page-header">
 <table width="100%" border="0">
 <tr>
-<th align="left" valign="top"><img src="ria_en.png" alt="Republic of Estonia Information System Authority" width="389" height="156"><img src="x-road.png" alt="X-Road" width="196" height="78"></th>
+<th align="left" valign="top"><img src="ria_en.png" alt="Republic of Estonia Information System Authority" width="389" height="156"><img src="xroad_en.png" alt="X-Road" width="196" height="78"></th>
 <th align="right" valign="top"><img src="eu_en.jpg" alt="European Union European Structural and Investment Funds | Investing in your future" width="356" height="206"></th>
 </tr>
 </table>
