@@ -24,7 +24,7 @@
 <table width="100%" border="0">
 <tr>
 <th align="left" valign="top"><img src="x-road.png" alt="X-Road" width="196" height="78"></th>
-<th align="right" valign="top"><img src="eu.jpg" alt="European Union European Regional Development Fund | Investing in your future" width="356" height="206"></th>
+<th align="right" valign="top"><img src="eu.jpg" alt="European Union European Structural and Investment Funds | Investing in your future" width="356" height="206"></th>
 </tr>
 </table>
 </div>
