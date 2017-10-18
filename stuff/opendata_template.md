@@ -1,11 +1,11 @@
-# Opendata template
+# RIA OpenData
 
 ## Eesti keeles
 
-<!DOCTYPE html>
+<!-- !DOCTYPE html>
 <html>
     <head>
-        <title>RIA OpenData</title>
+        <title>RIA OpenData</title -->
 
         {% load static %}
         <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.0/jquery.min.js"></script>
@@ -18,8 +18,8 @@
         <link rel="stylesheet" href="https://cdn.datatables.net/1.10.15/css/jquery.dataTables.min.css">
         <link href="{% static 'gui/index.css' %}" rel="stylesheet"/>
 
-    </head>
-    <body>
+    <!-- /head>
+    <body -->
         <div class="container">
 
             <div class="page-header">
@@ -156,8 +156,8 @@
                 minDate: moment("{{min_date}}", "MMM DD, YYYY"), maxDate: moment("{{max_date}}", "MMM DD, YYYY")});
         </script>
         <script src="{% static 'gui/index.js' %}"></script>
-    </body>
-</html>
+    <!-- /body>
+</html -->
 
 ## Inglise keeles
 
