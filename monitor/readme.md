@@ -32,7 +32,7 @@ The modules should be set up in the following order:
 2. [Corrector](./docs/corrector_module.md)
 3. [Reports](./docs/reports_module.md)
 4. [Opendata](./docs/opendata_module.md)
-5. [Analyzer](./docs/analysis_module.md) (in progress)
+5. [Analyzer](./docs/analysis_module.md)
 
 ## Programming language
 
@@ -41,3 +41,4 @@ All modules are written in **Python** and tested with version 3.5.2. Other 3.x v
 ---
 
 ![](img/eu_regional_development_fund_horizontal_div_15.png "European Union | European Regional Development Fund | Investing in your future")
+

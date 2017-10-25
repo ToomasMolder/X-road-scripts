@@ -54,3 +54,4 @@ sudo dpkg -i kibana-5.4.0-amd64.deb
 
 sudo apt-get install -f
 ```
+

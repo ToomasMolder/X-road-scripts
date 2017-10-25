@@ -9,16 +9,18 @@ The system is distributed over 7 servers, organized as follows:
 * [Analyzer Module](#analyzer-module)
 * [Opendata Module (on 2 nodes)](#opendata-module)
 
-Overall system, its users and rights, processes and directories are designed in a way, that all modules can reside in one server and also in separate servers. 
+The System Architecture is part of [X-Road v6 monitor project](../readme.md), which includes modules of [Database module](database_module.md), [Collector module](collector_module.md), [Corrector module](corrector_module.md), [Analysis module](analysis_module.md), [Reports module](reports_module.md) and [Opendata module](opendata_module.md).
 
-Overall system is also designed in a way, that allows to monitor data from different X-Road v6 instances (ee-dev, ee-test, EE), see also [X-Road v6 environments](https://www.ria.ee/en/x-road-environments.html#v6).
+Overall system, its users and rights, processes and directories are designed in a way, that all modules can reside in one server (different users but in same group) and also in separate servers. 
+
+Overall system is also designed in a way, that allows to monitor data from different X-Road v6 instances (`ee-dev`, `ee-test`, `EE`), see also [X-Road v6 environments](https://www.ria.ee/en/x-road-environments.html#v6).
 
 Overall system is also designed in a way, that can be used by X-Road Centre for all X-Road members as well as for Member own monitoring (includes possibilities to monitor also members data exchange partners).
 
 
 ![System overview](img/system_overview.png "System overview")
 
-## Operational specifications
+## Operational specifications, X-Road intance EE (production)
 
 ### Data flow expectation
 
@@ -54,7 +56,7 @@ The Database Module is responsible to store queries data using MongoDB.
 It uses the following configuration:
 
 ```
-Host: opmon.ci.kit
+Host: opmon
 ```
 
 ### Hardware Specification
@@ -89,8 +91,9 @@ The Collector Module is responsible for querying servers and storing the data in
 It uses the following configuration: 
 
 ```
-Host: opmon-collector.ci.kit
-Path: /srv/app/collector_module
+Host: opmon-collector
+X-Road Instance (instance): 'ee-dev' or 'ee-test' or 'EE'
+Path: /srv/app/${instance}/collector_module
 System User: collector
 ```
 
@@ -112,7 +115,7 @@ System User: collector
 
 ```
 * allow access to: X-Road central server port 80, monitoring security server port 80
-* allow access to: opmon.ci.kit:27017 (default, MongoDB)
+* allow access to: opmon:27017 (default, MongoDB)
 ```
 
 Read more about [Collector module](collector_module.md).
@@ -123,8 +126,9 @@ The Corrector Module is responsible for transforming the raw data in MongoDB to 
 It uses the following configuration: 
 
 ```
-Host: opmon-corrector.ci.kit
-Path: /srv/app/corrector_module
+Host: opmon-corrector
+X-Road Instance (instance): 'ee-dev' or 'ee-test' or 'EE'
+Path: /srv/app/${instance}/corrector_module
 System User: corrector
 ```
 
@@ -145,7 +149,7 @@ System User: corrector
 ### Network Specification
 
 ```
-* allow access to: opmon.ci.kit:27017 (default, MongoDB)
+* allow access to: opmon:27017 (default, MongoDB)
 ```
 
 Read more about [Corrector module](corrector_module.md).
@@ -156,8 +160,9 @@ The Reports Module is responsible to generate periodical reports, accordingly to
 It uses the following configuration: 
 
 ```
-Host: opmon-reports.ci.kit
-Path: /srv/app/reports_module
+Host: opmon-reports
+X-Road Instance (instance): 'ee-dev' or 'ee-test' or 'EE'
+Path: /srv/app/${instance}/reports_module
 System User: reports
 ```
 
@@ -178,7 +183,7 @@ System User: reports
 ### Network Specification
 
 ```
-* allow access to: opmon.ci.kit:27017 (default, MongoDB)
+* allow access to: opmon:27017 (default, MongoDB)
 * allow access to: public web:22 (scp, rsync)
 * allow access to: smtp:25 (email)
 ```
@@ -190,8 +195,9 @@ Read more about [Reports module](reports_module.md).
 ### Node 1 - Anonymizer
 
 ```
-Host: opmon-anonymizer.ci.kit
-Path: /srv/app/opendata_module/anonymizer
+Host: opmon-anonymizer
+X-Road Instance (instance): 'ee-dev' or 'ee-test' or 'EE'
+Path: /srv/app/${instance}/opendata_module/anonymizer
 System User: anonymizer
 ```
 
@@ -212,15 +218,16 @@ System User: anonymizer
 #### Network Specification
 
 ```
-* allow access to: opmon.ci.kit:27017 (default, MongoDB)
+* allow access to: opmon:27017 (default, MongoDB)
 * allow access to: opmon-opendata:5432 (default, PostgreSQL)
 ```
 
 ### Node 2 - Interface and PostgreSQL 
 
 ```
-Host: opmon-opendata.ci.kit
-Path: /srv/app/opendata_module/interface
+Host: opmon-opendata
+X-Road Instance (instance): 'ee-dev' or 'ee-test' or 'EE'
+Path: /srv/app/${instance}/opendata_module/interface
 System User: opendata
 ```
 
@@ -250,8 +257,9 @@ Read more about [Opendata module](opendata_module.md).
 ## Analyzer Module
 
 ```
-Host: opmon-analyzer.ci.kit
-Path: /srv/app/analyzer_module
+Host: opmon-analyzer
+X-Road Instance (instance): 'ee-dev' or 'ee-test' or 'EE'
+Path: /srv/app/${instance}/analyzer_module
 Components: Analyzer, Analyzer UI
 ```
 
@@ -272,7 +280,7 @@ Components: Analyzer, Analyzer UI
 ### Network Specification
 
 ```
-* allow access to: opmon.ci.kit:27017 (default, MongoDB)
+* allow access to: opmon:27017 (default, MongoDB)
 * allow access from: internal administrative network:80 (private, http)
 ```
 

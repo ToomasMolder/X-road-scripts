@@ -1,14 +1,12 @@
-# Open Data Module
-
-## Configuration file parameters
+# X-Road v6 monitor project - Opendata module, Configuration file parameters
 
 Following subsections describe all the `settings.py` parameters. 
 
 **Note:** Anonymizer and Interface have different available parameters.
 
-#### Anonymizer
+## Anonymizer
 
-##### Field translations file
+### Field translations file
 
 Field translation file defines, how the (nested) field names in MongoDB are mapped to the PostgreSQL database field names.
 
@@ -16,7 +14,7 @@ Entries in MongoDB are "dual", meaning that one entry holds both a *client* log 
 
 The file is also used to determine all the relevant MongoDB fields, meaning that even if it's an identity mapping (field name in MongoDB matches the field name in PostgreSQL), the mapping must exist.
 
-The file must always be located in **opendata_module/anonymizer/cfg_lists/** folder. Default file is called **field_translations.list** and is located at **opendata_module/anonymizer/cfg_lists/field_translations.list**.
+The file must always be located in folder `opendata_module/anonymizer/cfg_lists/`. Default file is called `field_translations.list` and is located at `opendata_module/anonymizer/cfg_lists/field_translations.list`.
 
 ```python
 anonymizer['field_translations_file'] = 'field_translations.list'
@@ -37,17 +35,17 @@ totalDuration -> totalDuration
 producerDurationProducerView -> producerDurationProducerView
 ```
 
+### Transformers
 
-##### Transformers
-Transformers are custom Python functions which take in a singular record with the final Open Data database schema (no "client." or "producer." preficies, postgresql_column_name keys) in the form of Python dictionary and can change one or many values. By default, only a transformer for reducing *requestInTs* accuracy is implemented and installed.
+Transformers are custom Python functions which take in a singular record with the final Opendata database schema (no "client." or "producer." prefices, postgresql_column_name keys) in the form of Python dictionary and can change one or many values. By default, only a transformer for reducing *requestInTs* accuracy is implemented and installed.
 
-The following statement says that only **opendata_module/anonymizer/transformers/default**:reduce_request_in_ts_precision is applied in the anonymization process. All custom transformers must be located within the *transformers* directory.
+The following statement says that only `opendata_module/anonymizer/transformers/default:reduce_request_in_ts_precision` is applied in the anonymization process. All other custom transformers must be located within the directory `transformers`.
 
 ```
 anonymizer['transformers'] = ['default.reduce_request_in_ts_precision']
 ```
 
-The corresponding transformer function is the following
+The corresponding transformer function removes minute and second precision from *requestInTs* field:
 
 ```python
 def reduce_request_in_ts_precision(record):
@@ -58,69 +56,58 @@ def reduce_request_in_ts_precision(record):
     return record
 ```
 
-and removes minute and second precision from *requestInTs* field.
+### Processing threads
 
-##### Processing threads
-
-Reading from MongoDB is done in the master thread. All the processing and writing is done in parallel among the defined number of threads (subprocesses due to [GIL](https://wiki.python.org/moin/GlobalInterpreterLock "Global Interpreter Lock")).
+Reading from MongoDB is done in the master thread. All the processing and writing is done in parallel among the defined number of threads (subprocesses due to [GIL](https://wiki.python.org/moin/GlobalInterpreterLock "Global Interpreter Lock")). 
+It is suggested to set number of threads match with nomber of server processor cores available.
 
 ```python
 anonymizer['threads'] = 2
 ```
 
-##### Time offset
-
-Anonymizer gives time for the corrector to get its *clean_data* table sorted out. This is done by providing a history, which defines how far back will the anonymizer look in hope to see that formerly "in progress" corrections have been completed. That temporal span is called the "time offset". *Time offset* + 7 days is also the duration during which Mongodb id-s are stored in the rotational log index.
-
-**Note:** *time offset* should match or exceed corrector's time offset. 
-
-```python
-anonymizer['time_offset'] = relativedelta(days=10)
-```
-Anonymizer's time offset uses *dateutils.relativedelta* to allow to specify a temporal difference from microseconds to years.
-
-
-#### MongoDB<a name="mongo-conf"></a>
+### MongoDB
 
 MongoDB settings define the connection parameters for an existing MongoDB database.
+Please configure following, including 'MODULE_PWD' to match with settings created in [Database module](../database_module.md).
 
 ```python
-mongo_db['host_address'] = 'opmon.ci.kit'
+mongo_db['host_address'] = 'opmon'
 mongo_db['port'] = 27017
 mongo_db['auth_db'] = 'auth_db'
-mongo_db['user'] = 'dev_user'
-mongo_db['password'] = 'jdu21docxce'
-mongo_db['database_name'] = 'query_db_ee-dev'
+mongo_db['user'] = 'anonymizer_${INSTANCE}'
+mongo_db['password'] = 'MODULE_PWD'
+mongo_db['database_name'] = 'query_db_${INSTANCE}'
 mongo_db['table_name'] = 'clean_data'
 ```
 
-**Note:** *auth_db* is the table in MongoDB which is responsible for authentication. If MongoDB is set up without specific admin on authentication database, *mongo_db['auth_db']* should be the same as *mongo_db['database_name']*.
+**Note:** `auth_db` is the table in MongoDB which is responsible for authentication. 
+If MongoDB is set up without specific admin on authentication database, *mongo_db['auth_db']* should be the same as *mongo_db['database_name']*.
 
-**Note:** *database_name* depends on X-Road instance.
+### PostgreSQL
 
-#### PostgreSQL<a name="postgres-conf"></a>
-
-PostgreSQL settings define the connection parameters for the existing PostgreSQL database (see Installation).
+PostgreSQL settings define the connection parameters for the existing PostgreSQL database (see [Interface and PostgreSQL Node > Installation](interface_postgresql.md#installation).
 
 ```
 postgres['buffer_size'] = 1000
-postgres['host_address'] = 'opmon-opendata.ci.kit'
+postgres['host_address'] = 'opmon-opendata'
 postgres['port'] = 5432
-postgres['database_name'] = 'opendata'
+postgres['database_name'] = '${INSTANCE}_opendata'
 postgres['table_name'] = 'logs'
-postgres['user'] = 'opendata'
-postgres['password'] = '12345'
+postgres['user'] = '${INSTANCE}_opendata'
+postgres['password'] = '${PWD_for_anonymizer_ee_dev}'
 ```
 
 The odd man is the *buffer_size*, which defines how many records will be processed and sent to the PostgreSQL database by one subprocess at a time.
 
-**Note:** *table_name* must differ between X-Road instances.
+**Note:** `database_name` and `user` differ between X-Road instances. Table name is always `logs`.
 
-#### Hiding rules
+### Hiding rules
 
-Hiding rules allow to define sets of (feature name, feature value regular expression) pairs. If all the pairs of any set match a record, the record will never see the daylight in the Open Data database.
+Hiding rules allow to define sets of (feature name, feature value regular expression) pairs. 
+If all the pairs of any set match a record, the record will not reach in the Opendata database.
 
-The following example defines a single rule, which hides records with `clientXRoadInstance=EE` and `clientMemberClass=GOV` and `clientMemberCode=70005938` or `clientMemberCode=70000591`.
+The following example defines a single rule, which hides records with 
+`clientXRoadInstance=EE` and `clientMemberClass=GOV` and `clientMemberCode=70005938` or `clientMemberCode=70000591`.
 
 ```python
 hiding_rules = [[{'feature': 'clientXRoadInstance', 'regex': '^EE$'},
@@ -129,32 +116,35 @@ hiding_rules = [[{'feature': 'clientXRoadInstance', 'regex': '^EE$'},
                 ]
 ```
 
-#### Substitution rules
+### Substitution rules
 
 Substitution rules allow to hide/alter specific field values with a similar format to hiding rules.
 
-The following example changes "clientMemberClass" values to "X-tee salaklass" for all the records of which "clientXRoadInstance=XYZ". 
+In this manual, `ee-dev` is used as INSTANCE. 
+To repeat for another instance, please change `ee-dev` to map your desired instance, example: `ee-test`, `EE`.
+
+The following example changes "clientMemberClass" values to "#N/A" for all the records of which "clientXRoadInstance=ee-dev". 
 
 ```python
 substitution_rules = [
     {
         'conditions': [
-            {'feature': 'clientXRoadInstance', 'regex': '^XYZ$'},
+            {'feature': 'clientXRoadInstance', 'regex': '^ee-dev$'},
         ],
         'substitutes': [
-            {'feature': 'clientMemberClass', 'value': 'X-tee salaklass'}
+            {'feature': 'clientMemberClass', 'value': '#N/A'}
         ]
     },
 ]
 ```
 
-**Note:** *conditions* can have many constraints like in the hiding rules example and *substitutes* can change many values at once when increasing the list.
+**Note:** *conditions* can have many constraints like in the hiding rules example and *substitutes* can change many values at once when increasing the list size.
 
-#### Field data file
+### Field data file
 
 Field data file maps descriptions, PostgreSQL data types and optionally agent-specificity to final (PostgreSQL) fields. 
 
-Field data file, just like _opendata_config.py_ is duplicated for both Anonymizer (_monitor/opendata_module/anonymizer/cfg_lists/field_data.yaml_) and Interface (_monitor/opendata_module/interface/cfg_lists/field_data.yaml_). Anonymizer and Interface of the same X-Road instance must have identical field data files.
+Field data file, just like `opendata_config.py` is duplicated for both Anonymizer (`opendata_module/anonymizer/cfg_lists/field_data.yaml`) and Interface (`opendata_module/interface/cfg_lists/field_data.yaml`). Anonymizer and Interface of the same X-Road instance must have identical field data files.
 
 **Descriptions** are listed in API served gzipped tarball meta files and visible when hovering over GUI's features in preview mode.
 
@@ -174,37 +164,11 @@ fields:
         description: Unique identifier of the record
         type: integer
     totalDuration:
-        description: To DOOOO
+        description: Request duration from sending the request to getting a response from the client's perspective
         type: integer
         agent: client
 ```
 
-#### Interface
+## Interface
 
-Most of the interface-specific settings, such as hosts, static directories etc can be defined in the Django settings file [**opendata_module/interface/interface/settings.py**](../../opendata_module/interface/interface/settings.py).
-
-However, disclaimer, preview_limit, and heartbeat_interval can be set in the general Open Data configuration file [*opendata_config.py*](../../opendata_module/anonymizer/opendata_config.py).
-
-##### Disclaimer
-
-Text which will be shown in the GUI and meta files accompanying the downloaded logs.
-
-```python
-disclaimer = '<b>DISCLAIMER: </b>This is a disclaimer from the configuration.'
-```
-
-##### Preview limit
-
-Preview limit defines the number of records which will be available in the GUI's preview panel.
-
-```python
-preview_limit = 100
-```
-
-##### Heartbeat interval
-
-Heartbeat interval defines in seconds, how often should the constantly running Django application output a heartbeat.
-
-```python
-heartbeat_interval = 3600
-```
+All the interface-specific settings, such as hosts, static directories etc can be defined in the Django settings file [opendata_module/interface/interface/settings.py](../../opendata_module/interface/interface/settings.py).

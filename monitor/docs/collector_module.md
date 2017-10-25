@@ -2,11 +2,11 @@
 
 ## About
 
-The collector module is part of [X-Road v6 monitor project](../readme.md), which includes modules of [Database module](database_module.md), [Collector module (this document)](collector_module.md), [Corrector module](corrector_module.md), [Analysis module](analysis_module.md), [Reports module](reports_module.md) and [Opendata module](opendata_module.md).
+The collector module is part of [X-Road v6 monitor project](../readme.md), which includes modules of [Database module](database_module.md), Collector module (this document), [Corrector module](corrector_module.md), [Analysis module](analysis_module.md), [Reports module](reports_module.md) and [Opendata module](opendata_module.md).
 
-Overall system, its users and rights, processes and directories are designed in a way, that all modules can reside in one server and also in separate servers. 
+Overall system, its users and rights, processes and directories are designed in a way, that all modules can reside in one server (different users but in same group) and also in separate servers. 
 
-Overall system is also designed in a way, that allows to monitor data from different X-Road v6 instances (ee-dev, ee-test, EE), see also [X-Road v6 environments](https://www.ria.ee/en/x-road-environments.html#v6).
+Overall system is also designed in a way, that allows to monitor data from different X-Road v6 instances (`ee-dev`, `ee-test`, `EE`), see also [X-Road v6 environments](https://www.ria.ee/en/x-road-environments.html#v6).
 
 Overall system is also designed in a way, that can be used by X-Road Centre for all X-Road members as well as for Member own monitoring (includes possibilities to monitor also members data exchange partners).
 
@@ -21,9 +21,11 @@ https://stash.ria.ee/projects/XTEE6/repos/monitor/browse
 and can be downloaded into server (ACL-protected):
 
 ```bash
+export TMPDIR="/tmp" ; mkdir --parents ${TMPDIR}; cd ${TMPDIR}
 # NB! git clone required only once
-cd ~; git clone https://stash.ria.ee/scm/xtee6/monitor.git
-mkdir -p ~/monitor; cd ~/monitor; git pull https://stash.ria.ee/scm/xtee6/monitor.git
+git clone https://stash.ria.ee/scm/xtee6/monitor.git
+# when want just to refresh existing repository, use pull
+cd ${TMPDIR}/monitor; git pull https://stash.ria.ee/scm/xtee6/monitor.git
 ```
 
 ## Installation
@@ -60,46 +62,58 @@ sudo pip3 install tqdm==4.14
 The collector module uses the system user **collector** and group **opmon**. To create them, execute:
 
 ```bash
-sudo groupadd -f opmon
-sudo useradd -M -r -s /bin/false -g opmon collector
+sudo groupadd --force opmon
+sudo useradd --base-dir /opt -M --system --shell /bin/false --gid opmon collector
 ```
 
-The module files should be installed in the **/srv/app** directory, within a sub-folder named after the desired X-Road instance. In this manual, the "ee-dev" is used (please change "ee-dev" to map your desired instance, example: "ee-test", "EE").
+The module files should be installed in the APPDIR directory, within a sub-folder named after the desired X-Road instance. 
+In this manual, `/srv/app` is used as APPDIR and the `ee-dev` is used as INSTANCE (please change `ee-dev` to map your desired instance, example: `ee-test`, `EE`).
 
 ```bash
+export APPDIR="/srv/app"
+export INSTANCE="ee-dev"
 # make necessary directories
-sudo mkdir -p /srv/app/ee-dev
-sudo mkdir -p /srv/app/ee-dev/logs
-sudo mkdir -p /srv/app/ee-dev/heartbeat
+sudo mkdir --parents ${APPDIR}/${INSTANCE}
+sudo mkdir --parents ${APPDIR}/${INSTANCE}/logs
+sudo mkdir --parents ${APPDIR}/${INSTANCE}/heartbeat
 # correct necessary permissions
-sudo chown root:opmon /srv/app/ee-dev/logs
-sudo chmod g+w /srv/app/ee-dev/logs
-sudo chown root:opmon /srv/app/ee-dev/heartbeat
-sudo chmod g+w /srv/app/ee-dev/heartbeat
+sudo chown root:opmon ${APPDIR}/${INSTANCE}/logs
+sudo chmod g+w ${APPDIR}/${INSTANCE}/logs
+sudo chown root:opmon ${APPDIR}/${INSTANCE}/heartbeat
+sudo chmod g+w ${APPDIR}/${INSTANCE}/heartbeat
 ```
 
 Copy the **collector** code to the install folder and fix the file permissions:
 
 ```bash
-sudo rsync -r -t -u ~/monitor/collector_module /srv/app/ee-dev
+# export TMPDIR="/tmp"; export APPDIR="/srv/app"; export INSTANCE="ee-dev"
+sudo rsync --recursive --update --times ${TMPDIR}/monitor/collector_module ${APPDIR}/${INSTANCE}
 # or 
-# sudo cp -u -r ~/monitor/collector_module /srv/app/ee-dev
-sudo chown -R collector:opmon /srv/app/ee-dev/collector_module
-sudo chmod -R -x+X /srv/app/ee-dev/collector_module
-sudo chmod +x /srv/app/ee-dev/collector_module/*.sh
+# sudo cp --recursive --update ${TMPDIR}/monitor/collector_module ${APPDIR}/${INSTANCE}
 ```
 
 Settings for different X-Road instances have been prepared and can be used:
 
 ```bash
-sudo rm /srv/app/ee-dev/collector_module/settings.py
-sudo ln -s /srv/app/ee-dev/collector_module/settings_ee-dev.py /srv/app/ee-dev/collector_module/settings.py
+# export APPDIR="/srv/app"; export INSTANCE="ee-dev"
+sudo rm ${APPDIR}/${INSTANCE}/collector_module/settings.py
+sudo ln --symbolic ${APPDIR}/${INSTANCE}/collector_module/settings_${INSTANCE}.py ${APPDIR}/${INSTANCE}/collector_module/settings.py
 ```
 
 If needed, edit necessary modifications to the settings file using your favorite text editor (here, **vi** is used):
 
 ```bash
-sudo vi /srv/app/ee-dev/collector_module/settings.py
+# export APPDIR="/srv/app"; export INSTANCE="ee-dev"
+sudo vi ${APPDIR}/${INSTANCE}/collector_module/settings.py
+```
+
+Correct necessary permissions
+
+```bash
+# export APPDIR="/srv/app"; export INSTANCE="ee-dev"
+sudo chown --recursive collector:opmon ${APPDIR}/${INSTANCE}/collector_module
+sudo chmod --recursive -x+X ${APPDIR}/${INSTANCE}/collector_module
+sudo chmod +x ${APPDIR}/${INSTANCE}/collector_module/*.sh
 ```
 
 ## Manual usage
@@ -107,7 +121,9 @@ sudo vi /srv/app/ee-dev/collector_module/settings.py
 To check collector manually as collector user, execute:
 
 ```bash
-cd /srv/app/ee-dev/; sudo -u collector ./collector_module/cron_collector.sh update
+# export APPDIR="/srv/app"; export INSTANCE="ee-dev"
+cd ${APPDIR}/${INSTANCE}
+sudo --user collector ./collector_module/cron_collector.sh update
 ```
 
 ## CRON usage
@@ -121,7 +137,7 @@ sudo crontab -e -u collector
 The **cron job** entry (execute every 3 hours, note that a different value might be needed in production)
 
 ```
-0 */3 * * * cd /srv/app/ee-dev/; ./collector_module/cron_collector.sh update
+0 */3 * * * export APPDIR="/srv/app"; export INSTANCE="ee-dev"; cd ${APPDIR}/${INSTANCE}; ./collector_module/cron_collector.sh update
 ```
 
 To check if the collector module is properly installed in the collector user, execute:
@@ -134,23 +150,22 @@ sudo crontab -l -u collector
 
 ### Logging 
 
-The **collector module** produces log files that, by default, is stored at:
+The **collector module** produces log files that, by default, is stored at `${APPDIR}/${INSTANCE}/logs`.
+
+The time format for durations in the log files is the following: "HH:MM:SS".
+For example:
 
 ```
-/srv/app/ee-dev/logs
+"Finished process. Processing time: 00:02:56"
 ```
 
 ### Heartbeat
 
-The heartbeat files are written to:
-
-```
-/srv/app/ee-dev/heartbeat
-```
+The heartbeat files are written to `${APPDIR}/${INSTANCE}/heartbeat`.
 
 ## Appendix
 
-NB! Mentioned appendixes do not log their work and do not keep heartbeat.
+NB! Mentioned appendixes below do not log their work and do not keep heartbeat.
 
 ### Collecting JSON queries and store into HDD
 
@@ -161,10 +176,30 @@ Collecting JSON queries and store into HDD was not part of the project scope. Ne
 It is possible to collect JSON queries from HDD and send it to MongoDB using the command "collector_from_file", as in:
 
 ```bash
-cd /srv/app/ee-dev/collector_module/; 
-sudo -u collector /usr/bin/python3 collector_from_file.py 'temp_files/ee-dev.COM.*'
+# export TMPDIR="/tmp"; export APPDIR="/srv/app"; export INSTANCE="ee-dev"
+sudo mkdir --parents ${APPDIR}/${INSTANCE}/mongodb_scripts
+sudo rsync --recursive --update --times ${TMPDIR}/monitor/mongodb_scripts/collector_from_file.py \
+    ${APPDIR}/${INSTANCE}/mongodb_scripts
+# correct necessary permissions
+sudo chown --recursive collector:opmon ${APPDIR}/${INSTANCE}/mongodb_scripts
+sudo chmod --recursive -x+X ${APPDIR}/${INSTANCE}/mongodb_scripts
+#
+# collector_from_file.py parameters:
+#   query_db_${INSTANCE} - MongoDB database of logs
+#   collector_${INSTANCE} - MongoDB user with write access to database
+#   "${TMPDIR}/${INSTANCE}.*.*.log" - temporary files with logs, Collecting JSON queries and store into HDD
+#   --auth auth_db - MongoDB authentication database for user
+#   --host opmon:27017 - MongoDB host and access port
+#
+# NB! total number of lines in files "${TMPDIR}/${INSTANCE}.*.*.log" is suggested to be limited with 
+#   100 000 lines per 1Gb RAM available
+# 
+sudo --user collector /usr/bin/python3 \
+    ${APPDIR}/${INSTANCE}/mongodb_scripts/collector_from_file.py \
+    query_db_${INSTANCE} collector_${INSTANCE} "${TMPDIR}/${INSTANCE}.*.*.log" --auth auth_db --host opmon:27017
 ```
 
 ---
 
 ![](img/eu_regional_development_fund_horizontal_div_15.png "European Union | European Regional Development Fund | Investing in your future")
+

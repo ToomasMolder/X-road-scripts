@@ -1,48 +1,78 @@
-# Open Data Module
-# Interface and PostgreSQL Node
+# X-Road v6 monitor project - Open Data Module, Interface and PostgreSQL Node
 
-## Installation (Linux/Debian)
+## About
+
+**Interface**
+: An API and a GUI to access the already anonymized data by [Anonymizer Node](anonymizer.md).
+
+The module source code can be found at (ACL-protected):
+
+```
+https://stash.ria.ee/projects/XTEE6/repos/monitor/browse
+```
+
+and can be downloaded into server (ACL-protected):
+
+```bash
+export TMPDIR="/tmp" ; mkdir --parents ${TMPDIR}; cd ${TMPDIR}
+# NB! git clone required only once
+git clone https://stash.ria.ee/scm/xtee6/monitor.git
+# when want just to refresh existing repository, use pull
+cd ${TMPDIR}/monitor; git pull https://stash.ria.ee/scm/xtee6/monitor.git
+```
+
+## Networking
+
+### Outgoing
+
+No **outgoing** connection is needed in the interface module.
+
+### Incoming
+
+- The Interface and PostgreSQL node accepts incoming connections from [Anonymizer module](anonymizer.md) (see also [Opendata module](../opendata_module.md)).
+- The Interface and PostgreSQL node accepts incoming access from the public (http port 80 (and, if configured, also https port 443).
+- The Interface and PostgreSQL node is protected by Estonian ID-card authentication, but no specific roles or user rights during pilot stage.
+
+## Installation
 
 Interface and PostgreSQL node has 3 main components:
 
-1. PostgreSQL for storing data which will be served by Django application;
-2. Django web application serving a single X-Road instance's daily logs from PostgreSQL;
-3. Apache serving the Django applications, each of which serves a specific X-Road instance.
+1. PostgreSQL;
+2. Apache;
+3. Open Data Django application.
 
+Contents of this installation guide:
 
-### 1. PostgreSQL
+1. [Set up PostgreSQL to store anonymized data](#1-postgresql);
+2. [Install Apache, which will serve Open Data Django applications](#2-apache);
+3. [Set up Open Data for different X-Road instances](#3-django-web-applications);
+4. [Configure Apache to serve Open Data Django application](#4-configuring-apache)
 
-#### Setting up the ODM database
+## 1. PostgreSQL
 
-Open Data Module depends on a running PostgreSQL instance. Opmon-opendata.ci.kit development server has an existing database `opendata` with user `opendata` and password `12345`.
+### Setting up the database
 
-ODM uses [PostgreSQL](https://www.postgresql.org/ "PostgreSQL") to store the anonymized data ready for public use. Current instructions are for PostgreSQL 9.3.
+Opendata module uses [PostgreSQL](https://www.postgresql.org/ "PostgreSQL") to store the anonymized data ready for public use.
+Current instructions are for PostgreSQL 9.5.
 
-A database with remote connection capabilities must be set up beforehand. Relations and relevant indices will be created dyncamically during the first Anonymizer's run, according to the supplied configuration.
+A database with remote connection capabilities must be set up beforehand. 
+Relations and relevant indices will be created dyncamically during the first run of [Anonymizer module](anonymizer.md), according to the supplied configuration.
 
-##### Downloading PostgreSQL 9.5
+### Downloading PostgreSQL 9.5
 
-Ubuntu 16.04.3 has PostgreSQL 9.5 in its default apt repository.
+Ubuntu 16.04.3 has PostgreSQL 9.5 in its default *apt* repository.
 
 ```bash
-sudo apt-get -y update 
+sudo apt-get --yes update 
 sudo apt-get install postgresql
 ```
 
-##### Creating users and a database
-
- 
-Add Linux users for remote access.
-
-```bash
-sudo adduser --no-create-home anonymizer
-sudo adduser --no-create-home opendata
-```
+### Creating users and databases for X-Road instances
 
 Switch to *postgres* user to create a database and corresponding PostgreSQL users.
 
 ```bash
-sudo su -l postgres
+sudo su --login postgres
 ```
 
 Enter PostgreSQL interactive terminal.
@@ -51,56 +81,117 @@ Enter PostgreSQL interactive terminal.
 psql
 ```
 
-Create *anonymizer* and *opendata* PostgreSQL users, *opendata* database and grant the privileges. We also have to define default privileges for *opendata*, as tables are created dynamically by *anonymizer*.
+Create *anonymizer* and *opendata* PostgreSQL users, *opendata* database and grant the privileges.
+We also have to define default privileges for *opendata*, as tables are created dynamically by *anonymizer*.
 
-**Note:** database name can differ but must match Anonymizer's and Django application's `mongodb['database_name']`. Same with username, but for `mongodb['user']`.
+**Note:** database name must match respective X-Road instance Anonymizer's and Django application's
+`mongodb['database_name']`. Same goes for user and `mongodb['user']`.
 
+In this manual, `ee-dev` is used as INSTANCE. 
+To repeat for another instance, please change `ee-dev` to map your desired instance, example: `ee-test`, `EE`.
+
+**Note:** PostgreSQL doesn't allow dashes and case sensitivity comes with a hassle.
+This means that for PostgreSQL instance
+```bash
+ee-dev -> ee_dev
+ee-test -> ee_test
+EE -> ee
 ```
-postgres=# CREATE USER anonymizer WITH PASSWORD '12345';
-postgres=# CREATE USER opendata WITH PASSWORD '12345';
-postgres=# CREATE DATABASE opendata WITH TEMPLATE template1 ENCODING 'utf8' LC_COLLATE 'en_US.UTF-8' LC_CTYPE 'en_US.UTF-8';
-postgres=# GRANT CREATE, CONNECT ON DATABASE opendata TO anonymizer;
-postgres=# GRANT CONNECT ON DATABASE opendata TO opendata;
-postgres=# ALTER DEFAULT PRIVILEGES FOR USER anonymizer IN SCHEMA public GRANT SELECT ON TABLES to opendata;
+
+Replace **${PWD_for_...}** with the desired password.
+
+**Note:** Selected passwords must also be adjusted in Anonymizer module and Interface module settings.
+
+**Note:** We don't create tables nor do we grant table privileges to *interface* and *networking* users, as
+*anonymizer* creates the tables and grants read-only access to those parties in the run time.
+```
+postgres=# CREATE USER anonymizer_ee_dev WITH PASSWORD '${PWD_for_anonymizer_ee_dev}';
+postgres=# CREATE USER interface_ee_dev WITH PASSWORD '${PWD_for interface_ee_dev}';
+postgres=# CREATE USER networking_ee_dev WITH PASSWORD '${PWD_for networking_ee_dev}';
+postgres=# CREATE DATABASE opendata_ee_dev WITH TEMPLATE template1 
+postgres-#     ENCODING 'utf8' LC_COLLATE 'en_US.UTF-8' LC_CTYPE 'en_US.UTF-8';
+postgres=# GRANT CREATE, CONNECT ON DATABASE opendata_ee_dev TO anonymizer_ee_dev
+postgres-#     WITH GRANT OPTION;
+postgres=# GRANT CONNECT ON DATABASE opendata_ee_dev TO interface_ee_dev;
+postgres=# GRANT CONNECT ON DATABASE opendata_ee_dev TO networking_ee_dev;
 postgres=# \q
 ```
 
-##### Allowing remote access
-
-PostgreSQL needs remote access, since API resides on another machine (hopefully).
-
-To allow remote access, permissions must be granted from both PostgreSQL and Linux sides.
-
-The following configuration allows password authentication for all clients. 
-
-To allow remote access to PostgreSQL, add the following lines to `/etc/postgresql/9.5/main/pg_hba.conf` in order to enable password authentication (md5 hash comparison) for Anonymizer node:
+Log out from *postgres* user.
 
 ```bash
-sudo cp /etc/postgresql/9.5/main/pg_hba.conf /etc/postgresql/9.5/main/pg_hba.conf.backup
-echo "host     opendata   anonymizer   <anonymizer_node_IP>   md5" | sudo tee --append /etc/postgresql/9.5/main/pg_hba.conf
-echo "hostssl     opendata   anonymizer   <anonymizer_node_IP>   md5" | sudo tee --append /etc/postgresql/9.5/main/pg_hba.conf
+logout
 ```
 
-**Note:** `host` type access can be revoked if using SSL-encrypted connections.
-**Note:** For stricter localhost security, existing `host all all 127.0.0.1/32 md5` can be substituted with
+### Allowing remote access
+
+PostgreSQL needs remote access, since Anonymizer resides on another machine.
+
+To allow remote access to PostgreSQL, add the following lines to `/etc/postgresql/9.5/main/pg_hba.conf` in order to
+enable password authentication (md5 hash comparison) from Anonymizer node and only localhost access for Interface.
+
+In this manual, `ee-dev` is used as INSTANCE. 
+To repeat for another instance, please change `ee-dev` to map your desired instance, example: `ee-test`, `EE`.
+
+**Note:** `host` type access can be substituted with `hostssl` if using SSL-encrypted connections.
+
 ```bash
-host    all         postgres    127.0.0.1/32    md5
-host    opendata    opendata    127.0.0.1/32    md5
+sudo cp --preserve /etc/postgresql/9.5/main/pg_hba.conf{,.bak}
+
+# Set ${anonymizer_ip}
+export anonymizer_ip=${anonymizer_ip}
+
+echo "host     opendata_ee_dev   anonymizer_ee_dev   ${anonymizer_ip}/32   md5" | \
+    sudo tee --append /etc/postgresql/9.5/main/pg_hba.conf
+echo "host    opendata_ee_dev    interface_ee_dev    127.0.0.1/32    md5" | \
+    sudo tee --append /etc/postgresql/9.5/main/pg_hba.conf
 ```
 
-Then allow remote clients by changing or adding the following line in `/etc/postgresql/9.5/main/postgresql.conf`:
+Remove too loose permissions:
+
+```bash
+sudo vi /etc/postgresql/9.5/main/pg_hba.conf
+```
+
+by commenting out lines:
+
+```bash
+# host      all         all    0.0.0.0/0    md5
+# hostssl   all         all    0.0.0.0/0    md5
+```
+
+To reject any other IP-user-database combinations, execute:
+
+```bash
+echo "host    all    all   0.0.0.0/0    reject" | \
+    sudo tee --append /etc/postgresql/9.5/main/pg_hba.conf
+```
+
+Allow remote clients by changing or adding into
+
+```bash
+sudo vi /etc/postgresql/9.5/main/postgresql.conf
+```
+
+the following line:
 
 ```
 listen_addresses = '*'
 ```
 
-This says that PostgreSQL should listen on its defined port on all its network interfaces, including localhost.
+This says that PostgreSQL should listen on its defined port on all its network interfaces, including localhost and public available interfaces.
 
-##### Setting up rotational logging
+### Setting up rotational logging
 
-To set up daily logging which stores logs for a week at a default location `/var/lib/postgresql/9.5/main/pg_log`, add the following lines to `/etc/postgresql/9.5/main/postgresql.conf` 
+PostgreSQL stores its logs by default in the directory `/var/lib/postgresql/9.5/main/pg_log/` specified in `/etc/postgresql/9.5/main/postgresql.conf`. 
+
+Set up daily logging and keep 7 days logs, we can make the following alterations to it:
 
 ```bash
+sudo vi /etc/postgresql/9.5/main/postgresql.conf
+```
+
+```
 logging_collector = on
 log_filename = 'postgresql-opendata-%A.log'
 log_truncate_on_rotation = on
@@ -117,55 +208,23 @@ log_disconnections = on
 log_statement = 'mod'
 ```
 
-Also, the default log directory `/var/lib/postgresql/9.5/main/pg_log` can be changed by setting an absolute path.
+Restart PostgreSQL
 
 ```bash
-log_directory = '/srv/app/ee-dev/logs'
-```
-
-**Note:** changing log directory may make sense only when changing Apache served Django application default location as well.
-
-##### Finally
-
-Log out from `postgres` user and restart PostgreSQL.
-
-```bash
-logout
 sudo service postgresql restart
 ```
 
-Let's open PostgreSQL's default port 5432, so that Anonymizer could connect.
+If you have firewall installed, open Postgres' port 5432 for Anonymizer to connect.
+
+**WARNING:** **Although ufw is convenient, enabling it overrules/wipes the iptables, INCLUDING ACCESS TO 22 FOR SSH. 
+Always allow 22 after enabling.** 
 
 ```bash
-sudo apt-get install -y ufw
+sudo apt-get install --yes ufw
 sudo ufw enable
 sudo ufw allow 22
 sudo ufw allow 5432/tcp
 ```
-
-**WARNING:** **Although ufw is convenient, enabling it overrules/wipes the iptables, INCLUDING ACCESS TO 22 FOR SSH. Always allow 22 after enabling.** 
-
-
-## 2. Apache
-
-First let's install Apache and relevant libraries in order to be able to serve Open Data Interface instances.
-
-```bash
-sudo apt-get -y update
-sudo apt-get install -y apache2 apache2-utils libexpat1 ssl-cert apache2-dev
-```
-
-Let's open both 80 and 443 for Apache. Enabling `ufw` and port 22 in case PostgreSQL section isn't completed.
-
-```bash
-sudo apt-get install ufw
-sudo ufw enable
-sudo ufw allow 22
-sudo ufw allow http
-sudo ufw allow https
-```
-
-**WARNING:** **Although ufw is convenient, enabling it overrules/wipes the iptables, INCLUDING ACCESS TO 22 FOR SSH. Always allow 22 after enabling.** 
 
 To verify that the ports are open, run
 
@@ -175,7 +234,50 @@ sudo ufw status
 
 This should output something similar to
 
+```
+Status: active
+
+To                         Action      From
+--                         ------      ----
+22                         ALLOW       Anywhere                  
+5432/tcp                   ALLOW       Anywhere                  
+22 (v6)                    ALLOW       Anywhere (v6)             
+5432/tcp (v6)              ALLOW       Anywhere (v6)
+```
+
+## 2. Apache
+
+Install Apache and relevant libraries in order to be able to serve Interface instances.
+
 ```bash
+sudo apt-get -yes update
+sudo apt-get install --yes apache2 apache2-utils libexpat1 ssl-cert apache2-dev
+```
+
+**Note:** Apache installation creates user **www-data**. Django application, which serves Open Data Interface, is run with its _www-data_ permissions.
+
+Open both 80 (http) and 443 (https) for Apache. Enabling `ufw` and port 22 (ssh) in case PostgreSQL section isn't completed.
+
+**WARNING:** **Although ufw is convenient, enabling it overrules/wipes the iptables, INCLUDING ACCESS TO 22 FOR SSH. 
+Always allow 22 after enabling.** 
+
+```bash
+sudo apt-get install ufw
+sudo ufw enable
+sudo ufw allow 22
+sudo ufw allow http
+sudo ufw allow https
+```
+
+To verify that the ports are open, run
+
+```bash
+sudo ufw status
+```
+
+This should output something similar to
+
+```
 Status: active
 
 To                         Action      From
@@ -188,90 +290,93 @@ To                         Action      From
 443 (v6)                   ALLOW       Anywhere (v6)
 ```
 
-
-To test whether Apache works
+To test whether Apache works, the next command should output a web page source:
 
 ```bash
-sudo apt-get install curl
+sudo apt-get install --assume-yes curl
 curl localhost
 ```
 
-The previous command should output a web page source.
+## 3. Django web applications
 
-## 3. Open Data Django web applications
-
-Each X-Road instance needs its own instance of Open Data Interface.
-
-### Setting up X-Road instances
-
-Let's first download the Interface's code from the repository.
+The Interface module uses the system user **www-data** (apache) and group **opmon**. To create them, execute:
 
 ```bash
-sudo apt-get -y upgrade
-sudo apt-get install git -y
-git clone https://stash.ria.ee/scm/xtee6/monitor.git
+sudo groupadd --force opmon
+sudo usermod --append --groups opmon www-data
 ```
-
-**Note:** We don't need to create a dedicated user, as Interface will be served by Apache under `www-data` system user.
 
 ### Create relevant X-Road instances
 
-##### ee-dev
+Each X-Road instance needs its own instance of Interface.
+
+In this manual, `ee-dev` is used as INSTANCE. 
+To repeat for another instance, please change `ee-dev` to map your desired instance, example: `ee-test`, `EE`.
 
 ```bash
-sudo mkdir -p /var/www/ee-dev/opendata_module
-sudo mkdir -p /srv/app/ee-dev/heartbeat
-sudo mkdir -p /srv/app/ee-dev/logs
+export APPDIR="/srv/app"
+export WEBDIR="/var/www"
+export INSTANCE="ee-dev"
+```
+Web server content is stored in `$WEBDIR`,  logs and heartbeats in `$APPDIR`.
+
+```bash
+sudo mkdir --parents ${WEBDIR}/${INSTANCE}/opendata_module
 
 # Copy the code from repository to the default Apache directory
-sudo cp -u -r ~/monitor/opendata_module/interface /var/www/ee-dev/opendata_module
+# export TMPDIR="/tmp" 
+sudo rsync --recursive --update --times \
+    ${TMPDIR}/monitor/opendata_module/interface \
+	${WEBDIR}/${INSTANCE}/opendata_module
+# or
+# sudo cp --recursive --update \
+#     ${TMPDIR}/monitor/opendata_module/interface \
+#     ${WEBDIR}/${INSTANCE}/opendata_module
 
-# Copy an X-Road instance settings template
-sudo cp /var/www/ee-dev/opendata_module/interface/instance_configurations/settings_ee-dev.py /var/www/ee-dev/opendata_module/interface/interface/settings.py
+# Create log, heartbeat, and SQLite database directories with www-data write permission
+sudo mkdir --parents ${APPDIR}/${INSTANCE}/heartbeat
+sudo chown root:opmon ${APPDIR}/${INSTANCE}/heartbeat
+sudo chmod g+w ${APPDIR}/${INSTANCE}/heartbeat
+
+sudo mkdir --parents ${APPDIR}/${INSTANCE}/logs
+sudo chown root:opmon ${APPDIR}/${INSTANCE}/logs
+sudo chmod g+w ${APPDIR}/${INSTANCE}/logs
+
+# Database directory to store Django's internal SQLite database.
+sudo mkdir --parents ${WEBDIR}/${INSTANCE}/opendata_module/interface/database
+sudo chown www-data:www-data ${WEBDIR}/${INSTANCE}/opendata_module/interface/database
 ```
 
-##### ee-test
+Settings for different X-Road instances have been prepared and can be used:
 
 ```bash
-sudo mkdir -p /var/www/ee-test/opendata_module
-sudo mkdir -p /srv/app/ee-test/heartbeat
-sudo mkdir -p /srv/app/ee-test/logs
-
-# Copy the code from repository to the default Apache directory
-sudo cp -u -r ~/monitor/opendata_module/interface /var/www/ee-test/opendata_module
-
-# Copy an X-Road instance settings template
-sudo cp /var/www/ee-test/opendata_module/interface/instance_configurations/settings_ee-test.py /var/www/ee-test/opendata_module/interface/interface/settings.py
+# export WEBDIR="/var/www"; export INSTANCE="ee-dev"
+sudo rm ${WEBDIR}/${INSTANCE}/opendata_module/interface/interface/settings.py
+sudo ln --symbolic \
+    ${WEBDIR}/${INSTANCE}/opendata_module/interface/instance_configurations/settings_${INSTANCE}.py \
+    ${WEBDIR}/${INSTANCE}/opendata_module/interface/interface/settings.py
 ```
 
-##### xtee-ci-xm
+Correct necessary permissions
 
 ```bash
-sudo mkdir -p /var/www/xtee-ci-xm/opendata_module
-sudo mkdir -p /srv/app/xtee-ci-xm/heartbeat
-sudo mkdir -p /srv/app/xtee-ci-xm/logs
-
-# Copy the code from repository to the default Apache directory
-sudo cp -u -r ~/monitor/opendata_module/interface /var/www/xtee-ci-xm/opendata_module
-
-# Copy an X-Road instance settings template
-sudo cp /var/www/xtee-ci-xm/opendata_module/interface/instance_configurations/settings_xtee-ci-xm.py /var/www/xtee-ci-xm/opendata_module/interface/interface/settings.py
+# export WEBDIR="/var/www"; export INSTANCE="ee-dev"
+sudo chown --recursive www-data:opmon ${WEBDIR}/${INSTANCE}/opendata_module
+sudo chmod --recursive -x+X ${WEBDIR}/${INSTANCE}/opendata_module
+# sudo chmod +x ${WEBDIR}/${INSTANCE}/opendata_module/*.sh
 ```
 
 ### Installing Python libraries
 
-Open Data Interface has been written with Python 3.5.2 in mind, which is the default preinstalled _python3_ version for Ubuntu 16.04.3 LTS.
+Interface has been written with Python 3.5.2 in mind, which is the default preinstalled _python3_ version for Ubuntu 16.04.3 LTS.
 
-Let's first get _pip3_ tool for downloading 3rd party Python libraries for _python3_ along with system dependencies.
+Get _pip3_ tool for downloading 3rd party Python libraries for _python3_ along with system dependencies.
 
 ```bash
-sudo apt-get -y upgrade
-sudo apt-get install -y python3-pip libpq-dev libyaml-dev
-```
-
-Install dependencies:
-```bash
-sudo pip3 install -r ~/monitor/opendata_module/anonymizer/requirements.txt
+sudo apt-get --yes upgrade
+sudo apt-get --yes install python3-pip libpq-dev libyaml-dev
+# export TMPDIR="/tmp" 
+sudo pip3 install -r ${TMPDIR}/monitor/opendata_module/anonymizer/requirements.txt
 ```
 
 We also need our Python version specific *mod_wsgi* build to serve Python applications through WSGI and Apache.
@@ -280,66 +385,69 @@ We also need our Python version specific *mod_wsgi* build to serve Python applic
 sudo pip3 install mod_wsgi
 ```
 
-This builds us a *mod_wsgi* for our *python3* version.
+This builds us a *mod_wsgi* for our *python3* version. We will install and load it when we configure Apache.
 
-Now we need to install it, running
-
-```bash
-sudo mod_wsgi-express install-module
-```
-
-This outputs something similar to
-
-```bash
-LoadModule wsgi_module "/usr/lib/apache2/modules/mod_wsgi-py35.cpython-35m-x86_64-linux-gnu.so"
-WSGIPythonHome "/usr"
-```
-
-### Setting up Django databases for Interface
+### Setting up Django SQLite databases for Interface
 
 Interface (API and GUI) runs on Django.
 
-In order for Django application to work, the internal SQLite database must be set up. For that, run
+In order for Django application to work, the internal SQLite database must be set up. For that, run:
 
 ```bash
 # Create schemas and then create corresponding tables
-sudo python3 /var/www/ee-dev/opendata_module/interface/manage.py makemigrations && sudo python3 /var/www/ee-dev/opendata_module/interface/manage.py migrate
-sudo python3 /var/www/ee-test/opendata_module/interface/manage.py makemigrations && sudo python3 /var/www/ee-test/opendata_module/interface/manage.py migrate
-sudo python3 /var/www/xtee-ci-xm/opendata_module/interface/manage.py makemigrations && sudo python3 /var/www/xtee-ci-xm/opendata_module/interface/manage.py migrate
+# export WEBDIR="/var/www"; export INSTANCE="ee-dev"
+sudo --user www-data python3 ${WEBDIR}/${INSTANCE}/opendata_module/interface/manage.py makemigrations
+sudo --user www-data python3 ${WEBDIR}/${INSTANCE}/opendata_module/interface/manage.py migrate
 ```
 
 ### Collecting static files for Apache
 
-Static files are scattered during the development in Django. To allow Apache to serve the static files from one location, they have to be collected (copied to a single directory). Let's collect static files for all relevant instances.
+Static files are scattered during the development in Django. 
+To allow Apache to serve the static files from one location, they have to be collected (copied to a single directory). 
+Collect static files for relevant instances to `${WEBDIR}/${INSTANCE}/opendata_module/interface/static` by default (`STATIC_ROOT` value in `settings.py`):
 
 ```bash
-sudo python3 /var/www/ee-dev/opendata_module/interface/manage.py collectstatic
-sudo python3 /var/www/ee-test/opendata_module/interface/manage.py collectstatic
-sudo python3 /var/www/xtee-ci-xm/opendata_module/interface/manage.py collectstatic
+# export WEBDIR="/var/www"; export INSTANCE="ee-dev"
+sudo python3 ${WEBDIR}/${INSTANCE}/opendata_module/interface/manage.py collectstatic <<<yes
 ```
 
+Make the _root:root_ static directory explicitly read-only for others (including _www-data_):
+
+```bash
+# export WEBDIR="/var/www"; export INSTANCE="ee-dev"
+sudo chmod --recursive o-w ${WEBDIR}/${INSTANCE}/opendata_module/interface/static
+```
 
 ## 4. Configuring Apache
 
-Let's create an Apache configuration file at **/etc/apache2/sites-available/opendata.conf** for port 80. 443 needs public domain address to order certs and we don't have that.
+Let Apache know of the correct WSGI instance by replacing Apache's default mod_wsgi loader.
+
+```bash
+sudo cp --preserve /etc/apache2/mods-available/wsgi.load{,.bak}
+sudo mod_wsgi-express install-module | head --lines 1 > /etc/apache2/mods-available/wsgi.load
+```
+
+Create an Apache configuration file at **/etc/apache2/sites-available/opendata.conf** for port 80 (http). 
+
+**Note:** To configure port 443 (https), public domain address and certificates are required.
 
 **Note:** The correct Python interpreter is derived from the loaded *wsgi_module*.
 
 ```bash
-sudo nano /etc/apache2/sites-available/opendata.conf
+sudo vi /etc/apache2/sites-available/opendata.conf
 ```
 
-```bash
+**Note:** `hostname -I` is probably the easiest way to get machine's IP address for `<machine IP>`
+
+**Note:** `<machine IP>` can be substituted with public domain name, once it's acquired.
+
+```
 <VirtualHost <machine IP>:80>
         ServerName <machine IP>
         ServerAdmin administrator@ci.kit
 
-        DocumentRoot /var/www/html
-
         ErrorLog ${APACHE_LOG_DIR}/opendata-error.log
         CustomLog ${APACHE_LOG_DIR}/opendata-access.log combined
-
-        LoadModule wsgi_module "/usr/lib/apache2/modules/mod_wsgi-py35.cpython-35m-x86_64-linux-gnu.so"
 
         WSGIApplicationGroup %{GLOBAL}
 
@@ -347,46 +455,31 @@ sudo nano /etc/apache2/sites-available/opendata.conf
 
         ## EE-DEV ##
 
-        WSGIDaemonProcess ee_dev python-path=/var/www/html/ee-dev/monitor/opendata_module/interface:/var/www/html/ee-dev/monitor/opendata_module/interface/interface
-        WSGIScriptAlias /ee-dev /var/www/html/ee-dev/monitor/opendata_module/interface/interface/wsgi.py process-group=ee_dev
+        WSGIDaemonProcess ee-dev
+        WSGIScriptAlias /ee-dev /var/www/ee-dev/opendata_module/interface/interface/wsgi.py process-group=ee-dev
 
-        Alias /ee-dev/static /var/www/html/ee-dev/monitor/opendata_module/interface/static
+        # Suffices to share static files only from one X-Road instance, as instances share the static files.
+        Alias /static /var/www/ee-dev/opendata_module/interface/static
 
-        <Directory /var/www/html/ee-dev/monitor/opendata_module/interface/static>
+        <Directory /var/www/ee-dev/opendata_module/interface/static>
                 Require all granted
         </Directory>
-        
+
         ## EE-TEST ##
 
-        WSGIDaemonProcess ee_test python-path=/var/www/html/ee-test/monitor/opendata_module/interface:/var/www/html/ee-test/monitor/opendata_module/interface/interface
-        WSGIScriptAlias /ee-test /var/www/html/ee-test/monitor/opendata_module/interface/interface/wsgi.py process-group=ee_test
+        WSGIDaemonProcess ee-test
+        WSGIScriptAlias /ee-test /var/www/ee-test/opendata_module/interface/interface/wsgi.py process-group=ee-test
 
-        Alias /ee-test/static /var/www/html/ee-test/monitor/opendata_module/interface/static
+        ## EE ##
 
-        <Directory /var/www/html/ee-test/monitor/opendata_module/interface/static>
-                Require all granted
-        </Directory>
-        
-        ## XTEE-CI-XM ##
+        WSGIDaemonProcess EE
+        WSGIScriptAlias /EE /var/www/EE/opendata_module/interface/interface/wsgi.py process-group=EE
 
-        WSGIDaemonProcess ee_xtee_ci_xm python-path=/var/www/html/xtee-ci-xm/monitor/opendata_module/interface:/var/www/html/xtee-ci-xm/monitor/opendata_module/interface/interface
-        WSGIScriptAlias /xtee-ci-xm /var/www/html/xtee-ci-xm/monitor/opendata_module/interface/interface/wsgi.py process-group=xtee_ci_xm
-
-        Alias /xtee-ci-xm/static /var/www/html/xtee-ci-xm/monitor/opendata_module/interface/static
-
-        <Directory /var/www/html/xtee-ci-xm/monitor/opendata_module/interface/static>
-                Require all granted
-        </Directory>
 </VirtualHost>
 ```
 
-**Note:** `LoadModule wsgi_module '<path>'` must match the first line of `sudo mod_wsgi-express install-module` output from the previous section. It's safe to run it again.
-
-**Note:** `hostname -I` is probably the easiest way to get machine's IP address for `<machine IP>`
-
-**Note:** `<machine IP>` can be substituted with public domain name, once it's acquired.
-
-After we have defined our *VirtualHost* configuration, we must enable the new *site* --- *opendata.conf* --- so that Apache could start serving it..
+After we have defined our *VirtualHost* configuration, we must enable the new *site* --- *opendata.conf* --- so that
+Apache could start serving it.
 
 ```bash
 sudo a2ensite opendata.conf
@@ -398,39 +491,35 @@ Finally, we need to reload Apache in order for the site update to apply.
 sudo service apache2 reload
 ```
 
+## Accessing Opendata interface
+
+Navigate to http://server_address/{ee-dev,ee-test,EE}/gui
+
 ## Extra security measures
 
+### Enforcing security upon users
 
-#### Enforcing security upon users
-
-Restrict ssh connections for users *anonymizer* and *opendata* by adding contstraints to `/etc/ssh/sshd_config`.
-
-```bash
-sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
-sudo echo "AllowUsers anonymizer@<anonymizer_IP/domain_name>" >> `/etc/ssh/sshd_config`
-sudo echo "AllowUsers opendata@localhost" >> `/etc/ssh/sshd_config`
-sudo echo "AllowUsers your_user" >> `/etc/ssh/sshd_config`
-```
-
-#### Limit ssh connections to RIA network
+### Limit ssh connections to internal network
 
 ```bash
 sudo ufw allow from 10.0.24.42/24 to any port 22
 ``` 
 
-#### Allow only SSH key based login
+### Allow only SSH key based login
 
 ```bash
-sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
-sudo nano /etc/ssh/sshd_config
+sudo cp --preserve /etc/ssh/sshd_config{,.bak}
+sudo vi /etc/ssh/sshd_config
 ```
 
 Disable the following features:
 
-```bash
+```
 PasswordAuthentication no
 ChallengeResponseAuthentication no
 ```
+
+Restart SSH service:
 
 ```bash
 service ssh restart
@@ -442,7 +531,7 @@ service ssh restart
 	Upscaling (more services): more RAM to handle larger log files.
 	Upscaling (more end users): more CPUs and RAM for more simultaneous queries.
 
-	Benefits from: disk space for ~Apache caching.
+	Benefits from: disk space for Apache caching.
 
 * **PostgreSQL**
 	Main attribute: disk space.
@@ -452,63 +541,136 @@ service ssh restart
 	Upscaling (more end users): additional RAM and CPUs for more simultaneous queries.
 	Upscaling (over time): additional disk space to store more logs.
 	
-	Benefits from: decent disk I/O speed (fast HDD or SSD, preferably), fast connection to Anonymizer and Interface components.
+	Benefits from: decent disk I/O speed (fast HDD or SSD, preferably),
+	fast connection to Anonymizer and Interface components.
 
 ## Logging and heartbeats
 
-API and GUI daily logs are stored for a week at **monitor/opendata_module/interface/logs** using TimedRotatingLogHandler.
+API and GUI daily logs are stored for a week by default at `${APPDIR}/${INSTANCE}/logs`
+using TimedRotatingLogHandler.
 
-API and GUI output heartbeats to **monitor/opendata_module/interface/{api,gui}-heartbeat.json** with the following formats:
+API and GUI output heartbeats to
+`${APPDIR}/${INSTANCE}/heartbeat/opendata-inteface-{gui,api}.json`
+with the following formats:
 
-```python
+```json
 {"timestamp": "01-09-2017 15-31-13", "name": "Opendata API", "version": "0.0.1", "postgres": true}
-
 {"timestamp": "01-09-2017 15-30-58", "name": "Opendata GUI", "version": "0.0.1", "api": true}
 ```
 
-Heartbeats are output on a regular basis, depending on the [**opendata_config.py**](../../opendata_module/anonymizer/opendata_config.py) `heartbeat_interval` value.
+Heartbeats are output on a regular basis if no error occur,
+depending on the **settings.py** `HEARTBEAT['interval']` value.
 
 ## Configuration
 
-Interface is using Django framework and much of its configuration is defined in Django's [settings.py](../../opendata_module/interface/interface/settings.py) file.
+Interface is using Django framework and its configuration is defined in Django's
+[settings.py](../../opendata_module/interface/interface/settings.py) file.
 
-#### Django settings<a name="django-conf"></a>
+### Must be customized
 
-Django has two relevant parameters, when setting up a new application.
+#### Allowed hosts
 
-##### Allowed hosts
-
-Allowed hosts defines the valid host headers to [prevent Cross Site Scripting attacks](https://docs.djangoproject.com/en/1.11/topics/security/#host-headers-virtual-hosting). _ALLOWED__HOSTS_ must include the domain name of the hosted application (or IP address, if missing) or Django will automatically respond with "Bad Request (400)".
-
-```python
-ALLOWED_HOSTS = ['opmon-opendata.ci.kit', 'localhost', '127.0.0.1']
-```
-
-##### Static root
-
-Static root is necessary only for GUI and holds the CSS and JS files to serve through Apache after `python manage.py collectstatic` has been issued. The most sensible path would direct to the Interface instance root directory.
-
-If serving only a single X-Road instance:
+Allowed hosts defines the valid host headers to [prevent Cross Site Scripting attacks](https://docs.djangoproject.com/en/1.11/topics/security/#host-headers-virtual-hosting).
+_ALLOWED__HOSTS_ must include the domain name of the hosting server `opmon-opendata` (or IP address, if missing) or Django will
+automatically respond with "Bad Request (400)".
 
 ```python
-STATIC_ROOT = '/var/www/monitor/opendata_module/interface/static/'
+ALLOWED_HOSTS = ['opmon-opendata', 'localhost', '127.0.0.1']
 ```
 
-Otherwise:
+**Note:** when getting **Bad request (400)** when accessing a page, then `ALLOWED_HOSTS` needs more tuning. 
+
+#### PostgreSQL connection parameters
+
+A Python dictionary defining the PostgreSQL connection parameters to a specific X-Road instance's opendata database.
+
+The following example is for `ee-dev` X-Road instance:
 
 ```python
-STATIC_ROOT = '/var/www/instance_A/monitor/opendata_module/interface/static/'
+POSTGRES_CONFIG = {
+    'host_address': '127.0.0.1',
+    'port': 5432,
+    'database_name': 'opendata_ee_dev',
+    'table_name': 'logs',
+    'user': 'interface_ee_dev',
+    'password': '${PWD_for interface_ee_dev}'
+}
 ```
 
-## Test run
+where ${PWD_for interface_ee_dev} is password set to user `interface_ee_dev` in section [Creating users and databases for X-Road instances](#creating-users-and-databases-for-x-road-instances)
+
+**Note:** using `127.0.0.1` for the host, so that we could limit **opendata** PostgreSQL users' access to localhost. 
 
 
-To test GUI and API, run
+### Can be customized
 
-```bash
-sudo python3 manage.py opendata_module/interface/runserver 0.0.0.0:80
+#### Static root
+
+Static root is necessary only for GUI and holds the CSS and JS files to serve through Apache after
+`python manage.py collectstatic` has been issued. By default it directs to the Interface instance's root directory.
+
+**Note:** should be in `${WEBDIR}`.
+
+```python
+STATIC_ROOT = '/var/www/<instance>/opendata_module/interface/static/'
 ```
 
-By default the web interface will be served at http://localhost/gui.
+#### Disclaimer
 
-**Note:** keeping it running with `nohup` and the aforementioned command is not scalable. Serve Interface using Apache.
+An arbitrary message in HTML format, which is displayed in the GUI footer and is also accompanying downloaded logs
+via API as content of the `meta.json` file.
+
+```python
+DISCLAIMER = '<small><b>DISCLAIMER:</b> Vastavalt julgeolekuasutuste seaduse § 5 (JAS, <a href="https://www.riigiteataja.ee/akt/117122015039?leiaKehtiv" target="_new">https://www.riigiteataja.ee/akt/117122015039?leiaKehtiv</a>) on julgeolekuasutused Kaitsepolitseiamet ja Välisluureamet, nende volitused on kirjeldatud JAS peatükis 4 (§ 21 - 35). Vastavalt riigisaladuse ja salastatud välisteabe seaduse § 11 lg 3 (RSVS, <a href="https://www.riigiteataja.ee/akt/104112016004?leiaKehtiv" target="_new">https://www.riigiteataja.ee/akt/104112016004?leiaKehtiv</a>), spetsiifilisemalt osas, mis puudutavad RSVS § 7 punktis 10 ja  § 8 punktis 1 nimetatud teavet, samuti tulenevalt Avaliku teabe seaduse § 35 lg 1 punktid 1, 31, 51 (AvTS, <a href="https://www.riigiteataja.ee/akt/122032011010?leiaKehtiv" target="_new">https://www.riigiteataja.ee/akt/122032011010?leiaKehtiv</a>) on julgeolekuasutuste  X-tee kasutusstatistika andmed asutusesiseseks kasutamiseks mõeldud teave. Sellest tulenevalt ei kajasta RIA enda poolt kogutava, koostatava ja avalikustatava X-tee kasutusstatistika avaandmete osas julgeolekuasutuste päringuid ega nende vastuseid.</small>'
+```
+
+#### Preview limit
+
+Defines the maximum amout of logs which will be displayed in the GUI's "Preview" table.
+
+```python
+PREVIEW_LIMIT = 100
+```
+
+#### Logs directory
+
+Path to the directory which will store the rotating log files.
+
+**Note:** directory must be created beforehand to enforce correct system level permissions.
+
+```python
+LOGS_DIR = '/srv/app/{0}/logs/'.format(X_ROAD_INSTANCE)
+```
+
+#### Heartbeat parameters
+
+A Python dictionary defining heartbeat interval and files' path.
+
+```python
+HEARTBEAT = {
+    'interval': 3600,
+    'api_path': os.path.join(BASE_DIR, 'heartbeat', 'opendata_API_interface_ee_test.json'),
+    'gui_path': os.path.join(BASE_DIR, 'heartbeat', 'opendata_GUI_interface_ee_test.json')
+}
+```
+
+**Note:** *Interval* is the maximum period in seconds after which another heartbeat is generated, if no errors have occured.
+
+**Note:** heartbeats directory must be created beforehand to enforce correct system level permissions.
+
+### Shouldn't be customized
+
+#### Field data YAML
+
+YAML file containing data about the fields. Most notably field descriptions and data types (used for data type specific operations).
+
+**Note:** must be ~identical to Anonymizer's.
+
+```python
+FIELD_DATA_YAML = os.path.join(BASE_DIR, 'cfg_lists', 'field_data.yaml')
+```
+
+#### Secret key
+
+A hash seed enforced by Django. It has no real impact on the current solution, as no authentication is handled by Django,
+nor do we use sessions of which hash could be stolen.
