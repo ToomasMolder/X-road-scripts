@@ -1,3 +1,7 @@
+
+| [![Republic of Estonia Information System Authority](img/ria_100_en.png)](https://www.ria.ee/en/) [![X-ROAD](img/xroad_100_en.png)](https://www.ria.ee/en/x-road.html) | ![European Union / European Regional Development Fund / Investing in your future](img/eu_rdf_100_en.png "Documents that are tagged with EU/SF logos must keep the logos until 1.11.2022. If it has not stated otherwise in the documentation. If new documentation is created  using EU/SF resources the logos must be tagged appropriately so that the deadline for logos could be found.") |
+| :-------------------------------------------------- | -------------------------: |
+
 # X-Road v6 monitor project
 
 ## Introduction
@@ -37,8 +41,3 @@ The modules should be set up in the following order:
 ## Programming language
 
 All modules are written in **Python** and tested with version 3.5.2. Other 3.x versions are likely to be compatible, give or take some 3rd party library interfaces.
-
----
-
-![](img/eu_regional_development_fund_horizontal_div_15.png "European Union | European Regional Development Fund | Investing in your future")
-
