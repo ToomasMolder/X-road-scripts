@@ -1,3 +1,7 @@
+
+| [![Republic of Estonia Information System Authority](../img/ria_100_en.png)](https://www.ria.ee/en/) [![X-ROAD](../img/xroad_100_en.png)](https://www.ria.ee/en/x-road.html) | ![European Union / European Regional Development Fund / Investing in your future](../img/eu_rdf_100_en.png "Documents that are tagged with EU/SF logos must keep the logos until 1.11.2022. If it has not stated otherwise in the documentation. If new documentation is created  using EU/SF resources the logos must be tagged appropriately so that the deadline for logos could be found.") |
+| :-------------------------------------------------- | -------------------------: |
+
 # X-Road v6 monitor project - Open Data Module, Interface and PostgreSQL Node
 
 ## About
@@ -67,7 +71,7 @@ sudo apt-get --yes update
 sudo apt-get install postgresql
 ```
 
-### Creating users and databases for X-Road instances
+### Creating users and databases
 
 Switch to *postgres* user to create a database and corresponding PostgreSQL users.
 
@@ -81,8 +85,23 @@ Enter PostgreSQL interactive terminal.
 psql
 ```
 
+#### Integration test
+
+If running integration tests for Open Data, the following PostgreSQL user and database must be set up:
+
+```
+postgres=# CREATE USER ci_test WITH PASSWORD 'ci_test';
+postgres=# CREATE DATABASE opendata_ci_test WITH TEMPLATE template1 
+postgres-#     ENCODING 'utf8' LC_COLLATE 'en_US.UTF-8' LC_CTYPE 'en_US.UTF-8';
+postgres=# GRANT CREATE, CONNECT ON DATABASE opendata_ci_test TO ci_test
+postgres-#     WITH GRANT OPTION;
+postgres=# \q
+```
+
+
+#### X-Road instances
+
 Create *anonymizer* and *opendata* PostgreSQL users, *opendata* database and grant the privileges.
-We also have to define default privileges for *opendata*, as tables are created dynamically by *anonymizer*.
 
 **Note:** database name must match respective X-Road instance Anonymizer's and Django application's
 `mongodb['database_name']`. Same goes for user and `mongodb['user']`.
@@ -91,8 +110,8 @@ In this manual, `ee-dev` is used as INSTANCE.
 To repeat for another instance, please change `ee-dev` to map your desired instance, example: `ee-test`, `EE`.
 
 **Note:** PostgreSQL doesn't allow dashes and case sensitivity comes with a hassle.
-This means that for PostgreSQL instance
-```bash
+This means that for PostgreSQL instance it is suggested to use underscores and lower characters:
+```
 ee-dev -> ee_dev
 ee-test -> ee_test
 EE -> ee
@@ -138,12 +157,16 @@ To repeat for another instance, please change `ee-dev` to map your desired insta
 ```bash
 sudo cp --preserve /etc/postgresql/9.5/main/pg_hba.conf{,.bak}
 
-# Set ${anonymizer_ip}
-export anonymizer_ip=${anonymizer_ip}
+# Set ${ANONYMIZER_IP}
+export ANONYMIZER_IP=`dig +short opmon-anonymizer`
+export NETWORKING_IP=`dig +short opmon-networking`
+export PG_INSTANCE="ee_dev"
 
-echo "host     opendata_ee_dev   anonymizer_ee_dev   ${anonymizer_ip}/32   md5" | \
+echo "host     opendata_${PG_INSTANCE}   anonymizer_${PG_INSTANCE}   ${ANONYMIZER_IP}/32   md5" | \
     sudo tee --append /etc/postgresql/9.5/main/pg_hba.conf
-echo "host    opendata_ee_dev    interface_ee_dev    127.0.0.1/32    md5" | \
+echo "host    opendata_${PG_INSTANCE}    interface_${PG_INSTANCE}    127.0.0.1/32    md5" | \
+    sudo tee --append /etc/postgresql/9.5/main/pg_hba.conf
+ echo "host    opendata_${PG_INSTANCE}    networking_${PG_INSTANCE}    ${NETWORKING_IP}/32    md5" | \
     sudo tee --append /etc/postgresql/9.5/main/pg_hba.conf
 ```
 
@@ -250,7 +273,7 @@ To                         Action      From
 Install Apache and relevant libraries in order to be able to serve Interface instances.
 
 ```bash
-sudo apt-get -yes update
+sudo apt-get --yes update
 sudo apt-get install --yes apache2 apache2-utils libexpat1 ssl-cert apache2-dev
 ```
 
@@ -299,7 +322,7 @@ curl localhost
 
 ## 3. Django web applications
 
-The Interface module uses the system user **www-data** (apache) and group **opmon**. To create them, execute:
+The Interface module uses the system user **www-data** (Apache) and group **opmon**. To create them, execute:
 
 ```bash
 sudo groupadd --force opmon
@@ -321,10 +344,10 @@ export INSTANCE="ee-dev"
 Web server content is stored in `$WEBDIR`,  logs and heartbeats in `$APPDIR`.
 
 ```bash
+# export TMPDIR="/tmp" ; export APPDIR="/srv/app"; export WEBDIR="/var/www" ; export INSTANCE="ee-dev"
 sudo mkdir --parents ${WEBDIR}/${INSTANCE}/opendata_module
 
 # Copy the code from repository to the default Apache directory
-# export TMPDIR="/tmp" 
 sudo rsync --recursive --update --times \
     ${TMPDIR}/monitor/opendata_module/interface \
 	${WEBDIR}/${INSTANCE}/opendata_module
@@ -334,15 +357,16 @@ sudo rsync --recursive --update --times \
 #     ${WEBDIR}/${INSTANCE}/opendata_module
 
 # Create log, heartbeat, and SQLite database directories with www-data write permission
-sudo mkdir --parents ${APPDIR}/${INSTANCE}/heartbeat
-sudo chown root:opmon ${APPDIR}/${INSTANCE}/heartbeat
-sudo chmod g+w ${APPDIR}/${INSTANCE}/heartbeat
-
 sudo mkdir --parents ${APPDIR}/${INSTANCE}/logs
-sudo chown root:opmon ${APPDIR}/${INSTANCE}/logs
-sudo chmod g+w ${APPDIR}/${INSTANCE}/logs
+sudo mkdir --parents ${APPDIR}/${INSTANCE}/heartbeat
+sudo chown root:opmon ${APPDIR}/${INSTANCE} ${APPDIR}/${INSTANCE}/logs ${APPDIR}/${INSTANCE}/heartbeat
+sudo chmod g+w ${APPDIR}/${INSTANCE} ${APPDIR}/${INSTANCE}/logs ${APPDIR}/${INSTANCE}/heartbeat
 
 # Database directory to store Django's internal SQLite database.
+# sudo mkdir --parents ${WEBDIR}
+# sudo mkdir --parents ${WEBDIR}/${INSTANCE}
+# sudo mkdir --parents ${WEBDIR}/${INSTANCE}/opendata_module
+# sudo mkdir --parents ${WEBDIR}/${INSTANCE}/opendata_module/interface
 sudo mkdir --parents ${WEBDIR}/${INSTANCE}/opendata_module/interface/database
 sudo chown www-data:www-data ${WEBDIR}/${INSTANCE}/opendata_module/interface/database
 ```
@@ -350,11 +374,49 @@ sudo chown www-data:www-data ${WEBDIR}/${INSTANCE}/opendata_module/interface/dat
 Settings for different X-Road instances have been prepared and can be used:
 
 ```bash
-# export WEBDIR="/var/www"; export INSTANCE="ee-dev"
-sudo rm ${WEBDIR}/${INSTANCE}/opendata_module/interface/interface/settings.py
+# export WEBDIR="/var/www" ; export INSTANCE="ee-dev"
+sudo rm -f ${WEBDIR}/${INSTANCE}/opendata_module/interface/interface/settings.py
 sudo ln --symbolic \
     ${WEBDIR}/${INSTANCE}/opendata_module/interface/instance_configurations/settings_${INSTANCE}.py \
     ${WEBDIR}/${INSTANCE}/opendata_module/interface/interface/settings.py
+```
+
+If needed, edit necessary modifications to the settings file using your favorite text editor (here, **vi** is used):
+
+```bash
+# export WEBDIR="/var/www" ; export INSTANCE="ee-dev"
+sudo vi ${WEBDIR}/${INSTANCE}/opendata_module/interface/interface/settings.py
+```
+
+These are the settings that **must** be definitely set:
+
+```python
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = False
+ALLOWED_HOSTS = ['opmon-opendata', 'localhost', '127.0.0.1']
+X_ROAD_INSTANCE = 'ee-dev'
+```
+
+```python
+POSTGRES_CONFIG = {
+    'host_address': '127.0.0.1',
+    'port': 5432,
+    'database_name': 'opendata_ee_dev',
+    'table_name': 'logs',
+    'user': 'interface_ee_dev',
+    'password': '${PWD_for interface_ee_dev}'
+}
+```
+
+These are the settings that will work with default values set but can be changed while needed:
+
+```python
+LOGS_DIR = '/srv/app/{0}/logs/'.format(X_ROAD_INSTANCE)
+DISCLAIMER = """ """
+HEADER = """ """
+FOOTER = """ """
+PREVIEW_LIMIT = 100
+HEARTBEAT_DIR = '/srv/app/{0}/heartbeat/'.format(X_ROAD_INSTANCE)
 ```
 
 Correct necessary permissions
@@ -363,7 +425,6 @@ Correct necessary permissions
 # export WEBDIR="/var/www"; export INSTANCE="ee-dev"
 sudo chown --recursive www-data:opmon ${WEBDIR}/${INSTANCE}/opendata_module
 sudo chmod --recursive -x+X ${WEBDIR}/${INSTANCE}/opendata_module
-# sudo chmod +x ${WEBDIR}/${INSTANCE}/opendata_module/*.sh
 ```
 
 ### Installing Python libraries
@@ -376,7 +437,7 @@ Get _pip3_ tool for downloading 3rd party Python libraries for _python3_ along w
 sudo apt-get --yes upgrade
 sudo apt-get --yes install python3-pip libpq-dev libyaml-dev
 # export TMPDIR="/tmp" 
-sudo pip3 install -r ${TMPDIR}/monitor/opendata_module/anonymizer/requirements.txt
+sudo pip3 install -r ${TMPDIR}/monitor/opendata_module/interface/requirements.txt
 ```
 
 We also need our Python version specific *mod_wsgi* build to serve Python applications through WSGI and Apache.
@@ -424,7 +485,7 @@ Let Apache know of the correct WSGI instance by replacing Apache's default mod_w
 
 ```bash
 sudo cp --preserve /etc/apache2/mods-available/wsgi.load{,.bak}
-sudo mod_wsgi-express install-module | head --lines 1 > /etc/apache2/mods-available/wsgi.load
+sudo mod_wsgi-express install-module | head --lines 1 | sudo tee /etc/apache2/mods-available/wsgi.load
 ```
 
 Create an Apache configuration file at **/etc/apache2/sites-available/opendata.conf** for port 80 (http). 
@@ -444,7 +505,7 @@ sudo vi /etc/apache2/sites-available/opendata.conf
 ```
 <VirtualHost <machine IP>:80>
         ServerName <machine IP>
-        ServerAdmin administrator@ci.kit
+        ServerAdmin administrator@domain
 
         ErrorLog ${APACHE_LOG_DIR}/opendata-error.log
         CustomLog ${APACHE_LOG_DIR}/opendata-access.log combined
@@ -483,6 +544,7 @@ Apache could start serving it.
 
 ```bash
 sudo a2ensite opendata.conf
+sudo a2enmod wsgi
 ```
 
 Finally, we need to reload Apache in order for the site update to apply.
@@ -494,6 +556,10 @@ sudo service apache2 reload
 ## Accessing Opendata interface
 
 Navigate to http://server_address/{ee-dev,ee-test,EE}/gui
+
+## Testing installation
+
+To verify that the Open Data Interface is set up correctly and the underlying PostgreSQL database is reachable, make the temporary configuration changes and run the scripts as stated ==> [HERE](../tests/tests_opendata_interface.md) ==<. 
 
 ## Extra security measures
 
@@ -566,6 +632,11 @@ depending on the **settings.py** `HEARTBEAT['interval']` value.
 Interface is using Django framework and its configuration is defined in Django's
 [settings.py](../../opendata_module/interface/interface/settings.py) file.
 
+```bash
+# export WEBDIR="/var/www" ; export INSTANCE="ee-dev"
+sudo vi ${WEBDIR}/${INSTANCE}/opendata_module/interface/interface/settings.py
+```
+
 ### Must be customized
 
 #### Allowed hosts
@@ -584,7 +655,7 @@ ALLOWED_HOSTS = ['opmon-opendata', 'localhost', '127.0.0.1']
 
 A Python dictionary defining the PostgreSQL connection parameters to a specific X-Road instance's opendata database.
 
-The following example is for `ee-dev` X-Road instance:
+The following example is for `ee-dev` X-Road instance (PostgreSQL `ee_dev`):
 
 ```python
 POSTGRES_CONFIG = {
@@ -621,7 +692,21 @@ An arbitrary message in HTML format, which is displayed in the GUI footer and is
 via API as content of the `meta.json` file.
 
 ```python
-DISCLAIMER = '<small><b>DISCLAIMER:</b> Vastavalt julgeolekuasutuste seaduse § 5 (JAS, <a href="https://www.riigiteataja.ee/akt/117122015039?leiaKehtiv" target="_new">https://www.riigiteataja.ee/akt/117122015039?leiaKehtiv</a>) on julgeolekuasutused Kaitsepolitseiamet ja Välisluureamet, nende volitused on kirjeldatud JAS peatükis 4 (§ 21 - 35). Vastavalt riigisaladuse ja salastatud välisteabe seaduse § 11 lg 3 (RSVS, <a href="https://www.riigiteataja.ee/akt/104112016004?leiaKehtiv" target="_new">https://www.riigiteataja.ee/akt/104112016004?leiaKehtiv</a>), spetsiifilisemalt osas, mis puudutavad RSVS § 7 punktis 10 ja  § 8 punktis 1 nimetatud teavet, samuti tulenevalt Avaliku teabe seaduse § 35 lg 1 punktid 1, 31, 51 (AvTS, <a href="https://www.riigiteataja.ee/akt/122032011010?leiaKehtiv" target="_new">https://www.riigiteataja.ee/akt/122032011010?leiaKehtiv</a>) on julgeolekuasutuste  X-tee kasutusstatistika andmed asutusesiseseks kasutamiseks mõeldud teave. Sellest tulenevalt ei kajasta RIA enda poolt kogutava, koostatava ja avalikustatava X-tee kasutusstatistika avaandmete osas julgeolekuasutuste päringuid ega nende vastuseid.</small>'
+DISCLAIMER = """<small>According to Security Authorities Act [1] §5 the security authorities are the
+Estonian Internal Security Service and the Estonian Foreign Intelligence Service. Their authorizations are described in
+chapter 4 (§21 - 35) of the above mentioned act. Based on aspects stated in the State Secrets and
+Classified Information of Foreign States Act [2] §11 section 3, §7 p 10 and § 8 p 1 and in the
+Public Information Act [3] §35 section 1 p 1, 31, 51 the X-Road usage statistics of security authorities is
+considered to be for internal use only. X-Road data that is being published as open data by RIA does not contain
+information about the security authorities.
+
+<ul style="list-style-type: none;">
+<li>[1] https://www.riigiteataja.ee/en/eli/521062017015/consolide</li>
+<li>[2] https://www.riigiteataja.ee/en/eli/519062017007/consolide</li>
+<li>[3] https://www.riigiteataja.ee/en/eli/518012016001/consolide</li>
+</ul>
+</small>
+"""
 ```
 
 #### Preview limit
@@ -649,8 +734,8 @@ A Python dictionary defining heartbeat interval and files' path.
 ```python
 HEARTBEAT = {
     'interval': 3600,
-    'api_path': os.path.join(BASE_DIR, 'heartbeat', 'opendata_API_interface_ee_test.json'),
-    'gui_path': os.path.join(BASE_DIR, 'heartbeat', 'opendata_GUI_interface_ee_test.json')
+    'api_path': os.path.join(BASE_DIR, 'heartbeat', 'opendata_API_interface_ee_dev.json'),
+    'gui_path': os.path.join(BASE_DIR, 'heartbeat', 'opendata_GUI_interface_ee_dev.json')
 }
 ```
 

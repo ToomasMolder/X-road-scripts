@@ -1,9 +1,47 @@
+
+| [![Republic of Estonia Information System Authority](../img/ria_100_en.png)](https://www.ria.ee/en/) [![X-ROAD](../img/xroad_100_en.png)](https://www.ria.ee/en/x-road.html) | ![European Union / European Regional Development Fund / Investing in your future](../img/eu_rdf_100_en.png "Documents that are tagged with EU/SF logos must keep the logos until 1.11.2022. If it has not stated otherwise in the documentation. If new documentation is created  using EU/SF resources the logos must be tagged appropriately so that the deadline for logos could be found.") |
+| :-------------------------------------------------- | -------------------------: |
+
 # X-Road v6 monitor project - Open Data Module, Anonymizer Node
 
 ## About
 
 **Anonymizer**
 : A pipeline for making X-Road v6 logs suitable for public use. It is achieved by fetching still unprocessed - but corrected data - from the [Corrector Module's](../corrector_module.md) output, applying the defined anonymization procedures, and outputting the already anonymized data available through [Interface and PostgreSQL Node](interface_postgresql.md).
+
+### Anonymization process
+
+1. Anonymizer requests records from MongoDB, of which *correctorStatus* is "done" and *correctorTime* is greater than the last anonymization session's timestamp.
+2. Batches of `postgres['buffer_size']` records are distributed to the processing threads.
+3. Unprocessed records (dual records with potential client and producer data) are split into individual
+   client and producer logs.
+4. Each individual log is then
+	1. checked whether it should be ignored, using custom hiding rules from `settings.py`;
+	2. having its individual values changed to constant values by the custom substitution rules
+	   (for example set mime sizes to 0 if represented party code is X);
+	3. transformed by custom transformers (Python functions). Custom transformers can perform more complicated or
+	   "dynamic" value alterations (for example reducing timestamp precision);
+	4. written to PostgreSQL database.
+	
+![anonymization](../img/opendata/anonymizer_module_diagram.png "System overview")
+
+## Performance
+
+The performance is tested on `opmon-anonymizer.ci.kit` machine with Ubuntu 16.04.3, 4 GB of RAM and 1 CPU core with 1700 MHz.
+
+The Anonymizer is only responsible for fetching raw dual logs from MongoDB, processing them (applying anonymization procedures), and sending them to PostgreSQL on a remote machine.
+
+Elapsed time in format `H:MM:SS`
+
+| Raw logs | Threads | Memory peak | Batch size | Elapsed time |
+| -----------: |-----------:|------------------:|----------------|------------------:|
+| 1000       | 1            |                        |          1000  |        0:00:02   |
+| 10000     | 1            |                        |   1000         |   0:00:10        |
+| 100000   | 1            | 855 MB           |   1000         |    0:01:35       |
+| 200000   | 1            |  1.7 GB            |  1000          |   0:03:20        |
+| 500000   | 1            |  3.9 GB           |  1000          |   0:08:29        | 
+
+## Codebase
 
 The module source code can be found at (ACL-protected):
 
@@ -74,18 +112,16 @@ export APPDIR="/srv/app"
 export INSTANCE="ee-dev"
 ```
 
-Make necessary directories and ccorrect necessary permissions:
+Make necessary directories and correct necessary permissions:
 
 ```bash
 # export APPDIR="/srv/app"; # export INSTANCE="ee-dev"
 sudo mkdir --parents ${APPDIR}/${INSTANCE}
 sudo mkdir --parents ${APPDIR}/${INSTANCE}/logs
 sudo mkdir --parents ${APPDIR}/${INSTANCE}/heartbeat
-
-sudo chown root:opmon ${APPDIR}/${INSTANCE}/logs
-sudo chmod g+w ${APPDIR}/${INSTANCE}/logs
-sudo chown root:opmon ${APPDIR}/${INSTANCE}/heartbeat
-sudo chmod g+w ${APPDIR}/${INSTANCE}/heartbeat
+# correct necessary permissions
+sudo chown root:opmon ${APPDIR}/${INSTANCE} ${APPDIR}/${INSTANCE}/logs ${APPDIR}/${INSTANCE}/heartbeat
+sudo chmod g+w ${APPDIR}/${INSTANCE} ${APPDIR}/${INSTANCE}/logs ${APPDIR}/${INSTANCE}/heartbeat
 ```
 
 Copy the **anonymizer** code from temporary folder to the application folder and fix the file permissions:
@@ -114,16 +150,17 @@ Settings for different X-Road instances have been prepared and can be used:
 
 ```bash
 # export APPDIR="/srv/app"; # export INSTANCE="ee-dev"
-sudo rm ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/instance_configurations/settings.py
-sudo ln --symbolic ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/instance_configurations/settings_${INSTANCE}.py \
-	${APPDIR}/${INSTANCE}/opendata_module/anonymizer/instance_configurations/settings.py
+sudo rm --force ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/settings.py
+sudo ln --symbolic \
+    ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/instance_configurations/settings_${INSTANCE}.py \
+	${APPDIR}/${INSTANCE}/opendata_module/anonymizer/settings.py
 ```
 
 If needed, edit necessary modifications to the settings file using your favorite text editor (here, **vi** is used):
 
 ```bash
 # export APPDIR="/srv/app"; # export INSTANCE="ee-dev"
-sudo vi ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/instance_configurations/settings.py
+sudo vi ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/settings.py
 ```
 
 Correct necessary permissions
@@ -132,8 +169,6 @@ Correct necessary permissions
 # export APPDIR="/srv/app"; # export INSTANCE="ee-dev"
 sudo chown --recursive anonymizer:opmon ${APPDIR}/${INSTANCE}/opendata_module/anonymizer
 sudo chmod --recursive -x+X ${APPDIR}/${INSTANCE}/opendata_module/anonymizer
-# No .sh files here
-# sudo chmod +x ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/*.sh
 ```
 
 
@@ -156,7 +191,7 @@ The parameters must be tuned in the following relevant X-Road instance anonymize
 
 ```bash
 # export APPDIR="/srv/app"; # export INSTANCE="ee-dev"
-sudo vi ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/instance_configurations/settings.py
+sudo vi ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/settings.py
 ```
 
 ### Secondary
@@ -178,7 +213,7 @@ sudo crontab -e -u anonymizer
 Add a cron job for relevant X-Road instance.
 
 ```
-0 0 * * * export APPDIR="/srv/app"; export INSTANCE="ee-dev"; /usr/bin/python3 ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/anonymize.py
+0 0 * * * export APPDIR="/srv/app"; export INSTANCE="ee-dev"; cd ${APPDIR}/${INSTANCE}/opendata_module; /usr/bin/python3 -m anonymizer.anonymize
 ```
 
 ## Scaling
@@ -226,15 +261,22 @@ One session of anonymization is run by executing:
 
 ```bash
 # export APPDIR="/srv/app"; # export INSTANCE="ee-dev"
-sudo --user anonymizer python3 ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/anonymize.py 100
+cd ${APPDIR}/${INSTANCE}/opendata_module
+sudo --user anonymizer python3 -m anonymizer.anonymize 100
 ```
 
 After testing, remove the settings.db, which acts as a last processing's timestamp bookmark.
-If not removed, next call of anonymize.py will continue from the logs of which minimum timestamp is that in settings.db.
+If not removed, next call of anonymize.py will continue where the previous run left off.
 
 ```bash
 # export APPDIR="/srv/app"; # export INSTANCE="ee-dev"
 sudo rm ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/session_data/settings.db
+```
+
+Finally, drop the test table or data will be duplicated.
+
+```bash
+python3 ${APPDIR}/${INSTANCE}/opendata_module/anonymizer/tests/manual/drop_example_table.py
 ```
 
 ### Session data
@@ -250,19 +292,3 @@ within the range
 ### Created PostgreSQL tables
 
 After the first run with new *postgres* parameters, anonymizer creates  table `postgres['table_name']` (from _settings.py_) with fields derived from *field_data.yaml* and *field_translations.list* to store the anonymized logs.
-
-## Anonymization process
-
-1. Anonymizer requests records from MongoDB, of which *correctorStatus* is "done" and *correctorTime* is greater than the last anonymization session's timestamp.
-2. Batches of `postgres['buffer_size']` records are distributed to the processing threads.
-3. Unprocessed records (dual records with potential client and producer data) are split into individual
-   client and producer logs.
-4. Each individual log is then
-	1. checked whether it should be ignored, using custom hiding rules from `settings.py`;
-	2. having its individual values changed to constant values by the custom substitution rules
-	   (for example set mime sizes to 0 if represented party code is X);
-	3. transformed by custom transformers (Python functions). Custom transformers can perform more complicated or
-	   "dynamic" value alterations (for example reducing timestamp precision);
-	4. written to PostgreSQL database.
-	
-![anonymization](../img/opendata/anonymizer_module_diagram.png "System overview")
