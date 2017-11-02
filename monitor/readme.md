@@ -1,5 +1,5 @@
 
-| [![Republic of Estonia Information System Authority](img/ria_100_en.png)](https://www.ria.ee/en/) [![X-ROAD](img/xroad_100_en.png)](https://www.ria.ee/en/x-road.html) | ![European Union / European Regional Development Fund / Investing in your future](img/eu_rdf_100_en.png "Documents that are tagged with EU/SF logos must keep the logos until 1.11.2022. If it has not stated otherwise in the documentation. If new documentation is created  using EU/SF resources the logos must be tagged appropriately so that the deadline for logos could be found.") |
+| [![Republic of Estonia Information System Authority](docs/img/ria_100_en.png)](https://www.ria.ee/en/) [![X-ROAD](docs/img/xroad_100_en.png)](https://www.ria.ee/en/x-road.html) | ![European Union / European Regional Development Fund / Investing in your future](docs/img/eu_rdf_100_en.png "Documents that are tagged with EU/SF logos must keep the logos until 1.11.2022. If it has not stated otherwise in the documentation. If new documentation is created  using EU/SF resources the logos must be tagged appropriately so that the deadline for logos could be found.") |
 | :-------------------------------------------------- | -------------------------: |
 
 # X-Road v6 monitor project
@@ -37,7 +37,8 @@ The modules should be set up in the following order:
 3. [Reports](./docs/reports_module.md)
 4. [Opendata](./docs/opendata_module.md)
 5. [Analyzer](./docs/analysis_module.md)
+6. [Networking](./docs/networking_module.md)
 
 ## Programming language
 
-All modules are written in **Python** and tested with version 3.5.2. Other 3.x versions are likely to be compatible, give or take some 3rd party library interfaces.
+All modules, except Networking that is written in **R**, are written in **Python** and tested with version 3.5.2. Other 3.x versions are likely to be compatible, give or take some 3rd party library interfaces.
